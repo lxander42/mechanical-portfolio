@@ -1,21 +1,71 @@
-<header class="text-center mb-6">
-  <h1 class="text-4xl font-bold underline mb-2">John Doe</h1>
-  <h2 class="text-2xl">Mechanical Engineer</h2>
-</header>
-
-<nav class="flex justify-center mb-6 p-4 border-2 border-black">
-  <a routerLink="/about" class="mx-4 p-2 font-bold border-b-2 border-transparent hover:border-black">About</a>
-  <a routerLink="/resume" class="mx-4 p-2 font-bold border-b-2 border-transparent hover:border-black">Resume</a>
-  <a routerLink="/portfolio" class="mx-4 p-2 font-bold border-b-2 border-transparent hover:border-black">Portfolio</a>
-  <a routerLink="/wiki" class="mx-4 p-2 font-bold border-b-2 border-transparent hover:border-black">Wiki</a>
-</nav>
-
-<router-outlet></router-outlet>
-
-<footer class="mt-6 border-t-2 border-black pt-4">
-  <div class="flex justify-between items-center p-4 border-t-2 border-black">
-      <div class="flex-1 text-center border-r-2 border-black">Name: John Doe</div>
-      <div class="flex-1 text-center border-r-2 border-black">Scale: 1:1</div>
-      <div class="flex-1 text-center">Date: {{ todayDate | date:'MM/dd/yyyy' }}</div>
+<div class="relative max-w-screen-xl mx-auto mt-8 border-4 border-black p-4 sm:p-6 md:p-8 lg:p-12">
+  <!-- Vertical Markers (A-H) -->
+  <div class="absolute top-0 left-0 h-full w-6 flex flex-col justify-between">
+      <span class="border-b border-black h-1/8 flex items-center justify-center font-bold">A</span>
+      <span class="border-b border-black h-1/8 flex items-center justify-center font-bold">B</span>
+      <span class="border-b border-black h-1/8 flex items-center justify-center font-bold">C</span>
+      <span class="border-b border-black h-1/8 flex items-center justify-center font-bold">D</span>
+      <span class="border-b border-black h-1/8 flex items-center justify-center font-bold">E</span>
+      <span class="border-b border-black h-1/8 flex items-center justify-center font-bold">F</span>
+      <span class="border-b border-black h-1/8 flex items-center justify-center font-bold">G</span>
+      <span class="h-1/8 flex items-center justify-center font-bold">H</span>
   </div>
-</footer>
+  <div class="absolute top-0 right-0 h-full w-6 flex flex-col justify-between">
+      <span class="border-b border-black h-1/8 flex items-center justify-center font-bold">A</span>
+      <span class="border-b border-black h-1/8 flex items-center justify-center font-bold">B</span>
+      <span class="border-b border-black h-1/8 flex items-center justify-center font-bold">C</span>
+      <span class="border-b border-black h-1/8 flex items-center justify-center font-bold">D</span>
+      <span class="border-b border-black h-1/8 flex items-center justify-center font-bold">E</span>
+      <span class="border-b border-black h-1/8 flex items-center justify-center font-bold">F</span>
+      <span class="border-b border-black h-1/8 flex items-center justify-center font-bold">G</span>
+      <span class="h-1/8 flex items-center justify-center font-bold">H</span>
+  </div>
+
+  <!-- Horizontal Markers (1-8) -->
+  <div class="absolute top-0 left-0 w-full h-6 flex justify-between">
+      <span class="border-r border-black w-1/8 flex items-center justify-center font-bold">1</span>
+      <span class="border-r border-black w-1/8 flex items-center justify-center font-bold">2</span>
+      <span class="border-r border-black w-1/8 flex items-center justify-center font-bold">3</span>
+      <span class="border-r border-black w-1/8 flex items-center justify-center font-bold">4</span>
+      <span class="border-r border-black w-1/8 flex items-center justify-center font-bold">5</span>
+      <span class="border-r border-black w-1/8 flex items-center justify-center font-bold">6</span>
+      <span class="border-r border-black w-1/8 flex items-center justify-center font-bold">7</span>
+      <span class="w-1/8 flex items-center justify-center font-bold">8</span>
+  </div>
+  <div class="absolute bottom-0 left-0 w-full h-6 flex justify-between">
+      <span class="border-r border-black w-1/8 flex items-center justify-center font-bold">1</span>
+      <span class="border-r border-black w-1/8 flex items-center justify-center font-bold">2</span>
+      <span class="border-r border-black w-1/8 flex items-center justify-center font-bold">3</span>
+      <span class="border-r border-black w-1/8 flex items-center justify-center font-bold">4</span>
+      <span class="border-r border-black w-1/8 flex items-center justify-center font-bold">5</span>
+      <span class="border-r border-black w-1/8 flex items-center justify-center font-bold">6</span>
+      <span class="border-r border-black w-1/8 flex items-center justify-center font-bold">7</span>
+      <span class="w-1/8 flex items-center justify-center font-bold">8</span>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="p-4 mt-8">
+      <!-- Title Block (Top Header) -->
+      <header class="text-center mb-4 border-b-4 border-black pb-4">
+          <h1 class="text-4xl font-bold uppercase tracking-widest mb-2">John Doe</h1>
+          <h2 class="text-2xl font-mono italic">Mechanical Engineer</h2>
+      </header>
+
+      <!-- Navigation (with Grid-Like Structure) -->
+      <nav class="flex justify-center space-x-4 mb-6 p-4 border-2 border-black">
+          <a routerLink="/about" class="uppercase text-lg font-semibold border-2 border-black p-2 hover:bg-gray-200">About</a>
+          <a routerLink="/resume" class="uppercase text-lg font-semibold border-2 border-black p-2 hover:bg-gray-200">Resume</a>
+          <a routerLink="/portfolio" class="uppercase text-lg font-semibold border-2 border-black p-2 hover:bg-gray-200">Portfolio</a>
+          <a routerLink="/wiki" class="uppercase text-lg font-semibold border-2 border-black p-2 hover:bg-gray-200">Wiki</a>
+      </nav>
+
+      <!-- Footer -->
+      <footer class="border-t-4 border-black mt-4 pt-4">
+          <div class="flex justify-between items-center text-sm font-mono">
+              <div class="flex-1 text-center border-r-2 border-black p-2">Name: John Doe</div>
+              <div class="flex-1 text-center border-r-2 border-black p-2">Scale: 1:1</div>
+              <div class="flex-1 text-center p-2">Date: {{ todayDate | date:'MM/dd/yyyy' }}</div>
+          </div>
+      </footer>
+  </div>
+</div>
