@@ -5,7 +5,7 @@ This is a personal portfolio project built with the MEAN stack (MongoDB, Express
 ## Project Overview
 
 - **Deployed Website**: [Mechanical Portfolio on Vercel](https://mechanical-portfolio.vercel.app)
-)
+
 - **Angular CLI Version**: 18.2.10
 - **Sections**: About, Resume, Portfolio, Wiki
 - **Purpose**: Professional online portfolio, mimicking the aesthetics of an engineering drawing.
