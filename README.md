@@ -1,27 +1,23 @@
-# MechanicalPortfolio
+# Mechanical Portfolio
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 18.2.10.
+This is a personal portfolio project built with the MEAN stack (MongoDB, Express, Angular, and Node.js) to showcase my work as a Mechanical Engineer. The design is inspired by an **ASME standard mechanical drawing**, aiming to replicate its style, with clean lines, monochromatic colors, and a grid-like layout. It contains four main sections: About, Resume, Portfolio, and Wiki.
 
-## Development server
+## Project Overview
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+- **Deployed Website**: [Mechanical Portfolio on Vercel](https://your-vercel-url.vercel.app)
+- **Angular CLI Version**: 18.2.10
+- **Sections**: About, Resume, Portfolio, Wiki
+- **Purpose**: Professional online portfolio, mimicking the aesthetics of an engineering drawing.
 
-## Code scaffolding
+## Getting Started
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+### Prerequisites
+- **Node.js** (v18.x or newer)
+- **Angular CLI** (v18.2.10)
+- **MongoDB** (optional for future database needs)
 
-## Build
-
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
-
-## Running unit tests
-
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+### Installation
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/lxander42/mechanical-portfolio.git
+   cd mechanical-portfolio
