@@ -1,13 +1,21 @@
-<header>
-  <h1>John Doe</h1>
-  <h2>Mechanical Engineer</h2>
+<header class="text-center mb-6">
+  <h1 class="text-4xl font-bold underline mb-2">John Doe</h1>
+  <h2 class="text-2xl">Mechanical Engineer</h2>
 </header>
 
-<nav>
-  <a routerLink="/about">About</a> |
-  <a routerLink="/resume">Resume</a> |
-  <a routerLink="/portfolio">Portfolio</a> |
-  <a routerLink="/wiki">Wiki</a>
+<nav class="flex justify-center mb-6 p-4 border-2 border-black">
+  <a routerLink="/about" class="mx-4 p-2 font-bold border-b-2 border-transparent hover:border-black">About</a>
+  <a routerLink="/resume" class="mx-4 p-2 font-bold border-b-2 border-transparent hover:border-black">Resume</a>
+  <a routerLink="/portfolio" class="mx-4 p-2 font-bold border-b-2 border-transparent hover:border-black">Portfolio</a>
+  <a routerLink="/wiki" class="mx-4 p-2 font-bold border-b-2 border-transparent hover:border-black">Wiki</a>
 </nav>
 
 <router-outlet></router-outlet>
+
+<footer class="mt-6 border-t-2 border-black pt-4">
+  <div class="flex justify-between items-center p-4 border-t-2 border-black">
+      <div class="flex-1 text-center border-r-2 border-black">Name: John Doe</div>
+      <div class="flex-1 text-center border-r-2 border-black">Scale: 1:1</div>
+      <div class="flex-1 text-center">Date: {{ todayDate | date:'MM/dd/yyyy' }}</div>
+  </div>
+</footer>
