@@ -68,22 +68,11 @@
   </div>
 
 <div class="border-2 border-black h-full w-full flex flex-row justify-between p-0"><!-- Thick Border Inside Markers -->
-    <!-- Main Content Area -->
-  <div class="flex flex-col justify-center items-center h-full px-4 mt-12">
-      <!-- Title Block (Top Header) -->
-      <header class="text-center mb-4 border-b-4 border-black pb-4">
-          <h1 class="text-4xl font-bold uppercase tracking-widest mb-2">John Doe</h1>
-          <h2 class="text-2xl font-mono italic">Mechanical Engineer</h2>
-      </header>
+  <!-- Main Content Area -->
 
-      <!-- Footer -->
-      <footer class="border-t-4 border-black mt-4 pt-4">
-          <div class="flex justify-between items-center text-sm font-mono">
-              <div class="flex-1 text-center border-r-2 border-black p-2">Name: John Doe</div>
-              <div class="flex-1 text-center border-r-2 border-black p-2">Scale: 1:1</div>
-              <div class="flex-1 text-center p-2">Date: {{ todayDate | date:'MM/dd/yyyy' }}</div>
-          </div>
-      </footer>
+  <!-- 3d model rendering -->
+  <div class="three-container-wrapper relative z-0 w-full h-[80vh] overflow-hidden">
+    <app-three-model></app-three-model>
   </div>
 
   <!-- Navigation Box (Title Block) -->
