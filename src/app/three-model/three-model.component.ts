@@ -190,19 +190,30 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
   private prepareExplodeAnimation(): void {
     this.model.traverse((child) => {
       if (child instanceof THREE.Mesh) {
-        child.userData['originalPosition'] = child.position.clone();
-        const explodedPosition = child.position.clone().add(new THREE.Vector3(5, 5, 5)); // Adjust as needed
+        // Skip the large part ("Body1") and only set up explosion for smaller parts
+        if (child.name === 'Body1:1') {
+          console.log(`Skipping explosion setup for large part: ${child.name}`);
+          return;
+        }
 
+        console.log(`Setting up explosion for small part: ${child.name}`);
+        child.userData['originalPosition'] = child.position.clone();
+
+        // Adjust explosion distance as needed
+        const explodedPosition = child.position.clone().add(new THREE.Vector3(5, 5, 5));
+
+        // Create tweens for the smaller parts only
         child.userData['tweenExplode'] = new Tween(child.position, this.tweenGroup)
           .to({ x: explodedPosition.x, y: explodedPosition.y, z: explodedPosition.z }, 1000)
-          .easing(Easing.Cubic.Out);  // Use Easing here
+          .easing(Easing.Cubic.Out);
 
         child.userData['tweenImplode'] = new Tween(child.position, this.tweenGroup)
           .to({ x: child.userData['originalPosition'].x, y: child.userData['originalPosition'].y, z: child.userData['originalPosition'].z }, 1000)
-          .easing(Easing.Cubic.Out);  // Use Easing here
+          .easing(Easing.Cubic.Out);
       }
     });
   }
+
 
 
 
