@@ -62,11 +62,7 @@ _I would like assistance with [adding a feature / fixing a bug]._
 
 > **Feature / Bug Description**: [Describe your desired feature or bug in detail]
 
-_To assist with choosing the files for upload, here’s the file structure of my latest project:_
-
-```plaintext 
-[Insert exported project file structure here]
-```
+_To assist with choosing the files for upload, I have uploaded a text file with my project structure_
 
 _Based on the structure, please let me know which files you need to review to help me implement the feature or fix the bug._
 
