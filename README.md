@@ -64,7 +64,7 @@ _I would like assistance with [adding a feature / fixing a bug]._
 
 _To assist with choosing the files for upload, I have uploaded a text file with my project structure_
 
-_Based on the structure, please let me know which files you need to review to help me implement the feature or fix the bug._
+_Based on the structure, please let me know which files you need to review to help me implement the feature or fix the bug.Please specify the exact files you would like me to upload._
 
 ## Instructions for Exporting file structure
 **For Windows:**
