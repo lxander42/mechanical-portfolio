@@ -19,6 +19,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
   private camera!: THREE.PerspectiveCamera | THREE.OrthographicCamera;
   private renderer!: THREE.WebGLRenderer;
   private model!: THREE.Object3D;
+  private customLineMaterial!: THREE.ShaderMaterial;
 
   constructor(
     private appRef: ApplicationRef,
@@ -88,6 +89,33 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
     this.scene.add(ambientLight);
 
     window.addEventListener('resize', this.onWindowResize.bind(this));
+
+    this.customLineMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        lineColor: { value: new THREE.Color(0x000000) },
+        scaleFactor: { value: 1.005 } // Controls the scale for boldness
+      },
+      vertexShader: `
+        uniform float scaleFactor;
+        void main() {
+          vec4 pos = modelViewMatrix * vec4(position * scaleFactor, 1.0);
+          pos.z -= 0.001; // Depth bias to bring edges slightly forward
+          gl_Position = projectionMatrix * pos;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 lineColor;
+        void main() {
+          gl_FragColor = vec4(lineColor, 1.0);
+        }
+      `,
+      depthTest: true,
+      depthWrite: false,
+      transparent: true
+    });
+
+
+
   }
 
   private onWindowResize(): void {
@@ -115,9 +143,6 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
     }
   }
 
-
-
-
   private loadModel(): void {
     const loader = new OBJLoader();
     const modelPath = `${this.document.location.origin}/assets/model.obj`;
@@ -129,23 +154,21 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
         this.model = obj;
         this.model.rotation.z = Math.PI/2; // Rotate 90 degrees
 
-
         // Scale and center the model as a whole
         this.model.scale.set(0.25, 0.25, 0.25);
         const box = new THREE.Box3().setFromObject(this.model);
         const center = box.getCenter(new THREE.Vector3());
         this.model.position.sub(center);
 
-        // Apply material to the model and add edges as children for each mesh
+        // Apply material to the model and add edges with custom shaders
         this.model.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             // Set color to match Tailwind bg-white (pure white)
             child.material = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
 
-            // Create outer edges geometry
+            // Create outer edges geometry with custom shader material
             const edgesGeometry = new THREE.EdgesGeometry(child.geometry);
-            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000 }); // Edge color: black
-            const edgeLines = new THREE.LineSegments(edgesGeometry, lineMaterial);
+            const edgeLines = new THREE.LineSegments(edgesGeometry, this.customLineMaterial);
 
             // Add edge lines as a child of the mesh to follow all transformations
             child.add(edgeLines);
@@ -167,8 +190,6 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
       }
     );
   }
-
-
 
   private animate(): void {
     if (typeof window === 'undefined') {
