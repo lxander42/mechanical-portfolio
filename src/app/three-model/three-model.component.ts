@@ -6,7 +6,7 @@ import { DomSanitizer } from '@angular/platform-browser';
 import { DOCUMENT } from '@angular/common';
 import * as THREE from 'three';
 import { OBJLoader } from 'three-stdlib';
-import TWEEN from '@tweenjs/tween.js';
+import { Tween, Group, Easing } from '@tweenjs/tween.js';
 
 @Component({
   selector: 'app-three-model',
@@ -20,6 +20,8 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
   private renderer!: THREE.WebGLRenderer;
   private model!: THREE.Object3D;
   private customLineMaterial!: THREE.ShaderMaterial;
+  private isExploded = false;
+  private tweenGroup = new Group(); // Create a new Group for tweens
 
   constructor(
     private appRef: ApplicationRef,
@@ -40,10 +42,6 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     if (isPlatformBrowser(this.platformId)) {
-      console.log('ngAfterViewInit called in browser');
-      console.log('Renderer:', this.renderer);
-      console.log('Scene:', this.scene);
-      console.log('Camera:', this.camera);
       this.ngZone.runOutsideAngular(() => {
         this.initScene();
         this.loadModel();
@@ -51,7 +49,12 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
       });
     }
     this.onWindowResize();
+
+    // Attach toggleExplode to the container’s click event
+    const container = this.el.nativeElement.querySelector('#three-container');
+    container.addEventListener('click', () => this.toggleExplode());
   }
+
 
   private initScene(): void {
     if (typeof window === 'undefined') {
@@ -113,28 +116,22 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
       depthWrite: false,
       transparent: true
     });
-
-
-
   }
 
   private onWindowResize(): void {
-    // Check if renderer is initialized before resizing
     if (!this.renderer) {
       return;
     }
 
     const container = this.el.nativeElement.querySelector('#three-container');
-
-    // Use the smaller dimension to keep the aspect ratio square
     const size = Math.min(container.clientWidth, container.clientHeight);
     this.renderer.setSize(size, size);
 
     if (this.camera instanceof THREE.PerspectiveCamera) {
-      this.camera.aspect = 1; // Square aspect ratio
+      this.camera.aspect = 1;
       this.camera.updateProjectionMatrix();
     } else if (this.camera instanceof THREE.OrthographicCamera) {
-      const frustumSize = 10; // Adjust based on your scene scale
+      const frustumSize = 10;
       this.camera.left = frustumSize / -2;
       this.camera.right = frustumSize / 2;
       this.camera.top = frustumSize / 2;
@@ -152,37 +149,26 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
       (obj) => {
         console.log("Model loaded successfully!");
         this.model = obj;
-        this.model.rotation.z = Math.PI/2; // Rotate 90 degrees
+        this.model.rotation.z = Math.PI / 2;
 
-        // Scale and center the model as a whole
         this.model.scale.set(0.25, 0.25, 0.25);
         const box = new THREE.Box3().setFromObject(this.model);
         const center = box.getCenter(new THREE.Vector3());
         this.model.position.sub(center);
 
-        // Apply material to the model and add edges with custom shaders
         this.model.traverse((child) => {
           if (child instanceof THREE.Mesh) {
-            // Set color to match Tailwind bg-white (pure white)
             child.material = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
 
-            // Create outer edges geometry with custom shader material
             const edgesGeometry = new THREE.EdgesGeometry(child.geometry);
             const edgeLines = new THREE.LineSegments(edgesGeometry, this.customLineMaterial);
-
-            // Add edge lines as a child of the mesh to follow all transformations
             child.add(edgeLines);
           }
         });
 
-        // Finally, add the complete model (with edges) to the scene
         this.scene.add(this.model);
-
-        console.log('Model center:', center);
-        console.log('Model position after centering:', this.model.position);
-        console.log('Model scale:', this.model.scale);
-
         this.prepareExplodeAnimation();
+
       },
       undefined,
       (error) => {
@@ -191,30 +177,72 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
     );
   }
 
+
+
   private animate(): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
     requestAnimationFrame(() => this.animate());
-    TWEEN.update();
+    this.tweenGroup.update(performance.now());  // Update the group with the current time
     this.renderer.render(this.scene, this.camera);
   }
+
+
 
   private prepareExplodeAnimation(): void {
     this.model.traverse((child) => {
       if (child instanceof THREE.Mesh) {
+        // Skip the large part ("Body1:1") and only set up explosion for smaller parts
+        if (child.name === 'Body1:1') {
+          console.log(`Skipping explosion setup for large part: ${child.name}`);
+          return;
+        }
+
+        console.log(`Setting up explosion for small part: ${child.name}`);
         child.userData['originalPosition'] = child.position.clone();
 
-        const explodedPosition = child.position.clone().add(new THREE.Vector3(0.5, 0.5, 0)); // Adjust as needed
+        // Define explosion direction for each smaller part
+        let explodedPosition;
+        switch (child.name) {
+          case 'Body1':
+            explodedPosition = child.position.clone().add(new THREE.Vector3(0, 0, 12)); // Move along x-axis
+            break;
+          case 'Body1:2':
+            explodedPosition = child.position.clone().add(new THREE.Vector3(12, 0, 0)); // Move along y-axis
+            break;
+          case 'Body1:3':
+            explodedPosition = child.position.clone().add(new THREE.Vector3(0, -12, 0)); // Move along z-axis
+            break;
+          default:
+            explodedPosition = child.position.clone(); // Fallback, no movement
+        }
 
-        child.userData['tweenExplode'] = new TWEEN.Tween(child.position)
+        // Create tweens for the explosion and implosion
+        child.userData['tweenExplode'] = new Tween(child.position, this.tweenGroup)
           .to({ x: explodedPosition.x, y: explodedPosition.y, z: explodedPosition.z }, 1000)
-          .easing(TWEEN.Easing.Cubic.Out);
+          .easing(Easing.Cubic.Out);
 
-        child.userData['tweenImplode'] = new TWEEN.Tween(child.position)
+        child.userData['tweenImplode'] = new Tween(child.position, this.tweenGroup)
           .to({ x: child.userData['originalPosition'].x, y: child.userData['originalPosition'].y, z: child.userData['originalPosition'].z }, 1000)
-          .easing(TWEEN.Easing.Cubic.Out);
+          .easing(Easing.Cubic.Out);
       }
     });
   }
+
+
+
+
+
+
+  private toggleExplode(): void {
+    this.model.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.userData['tweenExplode'] && child.userData['tweenImplode']) {
+        if (!this.isExploded) {
+          child.userData['tweenExplode'].start();
+        } else {
+          child.userData['tweenImplode'].start();
+        }
+      }
+    });
+    this.isExploded = !this.isExploded; // Toggle the explosion state
+  }
+
 }
