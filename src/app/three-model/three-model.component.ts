@@ -8,7 +8,6 @@ import * as THREE from 'three';
 import { OBJLoader } from 'three-stdlib';
 import TWEEN from '@tweenjs/tween.js';
 
-
 @Component({
   selector: 'app-three-model',
   standalone: true, // This marks it as a standalone component
@@ -41,14 +40,17 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
   ngAfterViewInit(): void {
     if (isPlatformBrowser(this.platformId)) {
       console.log('ngAfterViewInit called in browser');
+      console.log('Renderer:', this.renderer);
+      console.log('Scene:', this.scene);
+      console.log('Camera:', this.camera);
       this.ngZone.runOutsideAngular(() => {
         this.initScene();
         this.loadModel();
         this.animate();
       });
     }
+    this.onWindowResize();
   }
-
 
   private initScene(): void {
     if (typeof window === 'undefined') {
@@ -73,11 +75,10 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
     this.camera.position.set(5, -5, 5); // Position for the opposite corner
     this.camera.lookAt(0, 0, 0); // Keep it pointed at the center of the scene
 
-
     // Set renderer background color to Tailwind white
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setClearColor(0xffffff); // Background color set to white
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setSize(this.el.nativeElement.clientWidth * 0.25, this.el.nativeElement.clientHeight * 0.25);
 
     const container = this.el.nativeElement.querySelector('#three-container');
     container.appendChild(this.renderer.domElement);
@@ -85,6 +86,33 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
     // Optional: Add an ambient light for better visibility
     const ambientLight = new THREE.AmbientLight(0x333333, 0.5); // Soft gray light
     this.scene.add(ambientLight);
+
+    window.addEventListener('resize', this.onWindowResize.bind(this));
+  }
+
+  private onWindowResize(): void {
+    // Check if renderer is initialized before resizing
+    if (!this.renderer) {
+      return;
+    }
+
+    const container = this.el.nativeElement.querySelector('#three-container');
+
+    // Use the smaller dimension to keep the aspect ratio square
+    const size = Math.min(container.clientWidth, container.clientHeight);
+    this.renderer.setSize(size, size);
+
+    if (this.camera instanceof THREE.PerspectiveCamera) {
+      this.camera.aspect = 1; // Square aspect ratio
+      this.camera.updateProjectionMatrix();
+    } else if (this.camera instanceof THREE.OrthographicCamera) {
+      const frustumSize = 10; // Adjust based on your scene scale
+      this.camera.left = frustumSize / -2;
+      this.camera.right = frustumSize / 2;
+      this.camera.top = frustumSize / 2;
+      this.camera.bottom = frustumSize / -2;
+      this.camera.updateProjectionMatrix();
+    }
   }
 
 
@@ -108,8 +136,6 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
         this.model.position.sub(center); // Center the model at (0, 0, 0)
 
 
-
-        // Traverse each mesh and add only the edges with specific positioning/scaling
         this.model.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             const edgesGeometry = new THREE.EdgesGeometry(child.geometry);
@@ -127,7 +153,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
             // Explicitly set position and scale for each edge
             edgeLines.position.copy(this.model.position);
             edgeLines.scale.copy(this.model.scale);
-            this.scene.add(edgeLines); // Add edges only to the scene
+            this.scene.add(edgeLines);
           }
         });
 
@@ -144,29 +170,22 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
     );
   }
 
-
-
-
   private animate(): void {
     if (typeof window === 'undefined') {
-      return; // Exit if not running in a browser environment
+      return;
     }
     requestAnimationFrame(() => this.animate());
     TWEEN.update();
     this.renderer.render(this.scene, this.camera);
   }
 
-
   private prepareExplodeAnimation(): void {
     this.model.traverse((child) => {
       if (child instanceof THREE.Mesh) {
-        // Store original position for resetting
         child.userData['originalPosition'] = child.position.clone();
 
-        // Set up exploded positions (customize these based on your layout)
         const explodedPosition = child.position.clone().add(new THREE.Vector3(0.5, 0.5, 0)); // Adjust as needed
 
-        // Set up tween for hover explosion effect
         child.userData['tweenExplode'] = new TWEEN.Tween(child.position)
           .to({ x: explodedPosition.x, y: explodedPosition.y, z: explodedPosition.z }, 1000)
           .easing(TWEEN.Easing.Cubic.Out);
@@ -177,6 +196,4 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
       }
     });
   }
-
 }
-
