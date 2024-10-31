@@ -42,10 +42,6 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     if (isPlatformBrowser(this.platformId)) {
-      console.log('ngAfterViewInit called in browser');
-      console.log('Renderer:', this.renderer);
-      console.log('Scene:', this.scene);
-      console.log('Camera:', this.camera);
       this.ngZone.runOutsideAngular(() => {
         this.initScene();
         this.loadModel();
@@ -54,10 +50,11 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
     }
     this.onWindowResize();
 
-    // Add click listener to trigger explosion
+    // Attach toggleExplode to the container’s click event
     const container = this.el.nativeElement.querySelector('#three-container');
     container.addEventListener('click', () => this.toggleExplode());
   }
+
 
   private initScene(): void {
     if (typeof window === 'undefined') {
@@ -172,21 +169,12 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
         this.scene.add(this.model);
         this.prepareExplodeAnimation();
 
-        // Trigger the explode animation after model loads, for testing purposes
-        this.triggerExplodeTest();
       },
       undefined,
       (error) => {
         console.error("An error occurred loading the model:", error);
       }
     );
-  }
-
-  private triggerExplodeTest(): void {
-    const firstChild = this.model.children.find((child) => child instanceof THREE.Mesh) as THREE.Mesh;
-    if (firstChild && firstChild.userData['tweenExplode']) {
-      firstChild.userData['tweenExplode'].start();
-    }
   }
 
 
@@ -229,6 +217,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
         }
       }
     });
-    this.isExploded = !this.isExploded;
+    this.isExploded = !this.isExploded; // Toggle the explosion state
   }
+
 }
