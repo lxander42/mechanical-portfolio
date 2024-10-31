@@ -139,8 +139,8 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
         // Apply material to the model and add edges as children for each mesh
         this.model.traverse((child) => {
           if (child instanceof THREE.Mesh) {
-            // Set a distinct material color for the model
-            child.material = new THREE.MeshBasicMaterial({ color: 0xCCCCCC }); // Light gray
+            // Set color to match Tailwind bg-white (pure white)
+            child.material = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
 
             // Create outer edges geometry
             const edgesGeometry = new THREE.EdgesGeometry(child.geometry);
