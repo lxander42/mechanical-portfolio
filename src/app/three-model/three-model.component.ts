@@ -128,34 +128,30 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
         console.log("Model loaded successfully!");
         this.model = obj;
 
-        // Scale the model down for consistency
-        this.model.scale.set(-0.25, -0.25, -0.25);
-        // Center the model based on its bounding box
+        // Scale and center the model as a whole
+        this.model.scale.set(0.25, 0.25, 0.25);
         const box = new THREE.Box3().setFromObject(this.model);
         const center = box.getCenter(new THREE.Vector3());
-        this.model.position.sub(center); // Center the model at (0, 0, 0)
+        this.model.position.sub(center);
 
-
+        // Apply material to the model and add edges as children for each mesh
         this.model.traverse((child) => {
           if (child instanceof THREE.Mesh) {
+            // Set a distinct material color for the model
+            child.material = new THREE.MeshBasicMaterial({ color: 0xCCCCCC }); // Light gray
+
+            // Create outer edges geometry
             const edgesGeometry = new THREE.EdgesGeometry(child.geometry);
-
-            // Material with depth testing for visible edges only
-            const lineMaterial = new THREE.LineBasicMaterial({
-              color: 0x333333,
-              transparent: true,
-              opacity: 0.6,
-              depthTest: true,
-            });
-
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000 }); // Edge color: black
             const edgeLines = new THREE.LineSegments(edgesGeometry, lineMaterial);
 
-            // Explicitly set position and scale for each edge
-            edgeLines.position.copy(this.model.position);
-            edgeLines.scale.copy(this.model.scale);
-            this.scene.add(edgeLines);
+            // Add edge lines as a child of the mesh to follow all transformations
+            child.add(edgeLines);
           }
         });
+
+        // Finally, add the complete model (with edges) to the scene
+        this.scene.add(this.model);
 
         console.log('Model center:', center);
         console.log('Model position after centering:', this.model.position);
@@ -169,6 +165,8 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
       }
     );
   }
+
+
 
   private animate(): void {
     if (typeof window === 'undefined') {
