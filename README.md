@@ -54,6 +54,27 @@ The layout (app.component.html) is designed with elements reminiscent of enginee
 - **Dark Mode Toggle**: An option for switching between light and dark themes.
 - **3D Model Animations**: Additional animations to further enhance the model’s interactivity.
 
-## Contributing
+## Prompt for Feature additions
 
-To contribute or suggest improvements, create a branch and submit a pull request. This project uses standalone Angular components, so all additions should align with this structure.
+_I am working on an Angular project for my Mechanical Portfolio. This portfolio is a MEAN stack project inspired by ASME standard mechanical drawings, featuring a clean, monochromatic design with a grid layout. It includes four sections (About, Resume, Portfolio, and Wiki) and an interactive 3D model that separates into parts on hover, with each part clickable to navigate to different sections. The Angular project uses standalone components with no `app.module.ts`._
+
+_I would like assistance with [adding a feature / fixing a bug]._
+
+> **Feature / Bug Description**: [Describe your desired feature or bug in detail]
+
+_To assist with choosing the files for upload, here’s the file structure of my latest project:_
+
+```plaintext 
+[Insert exported project file structure here]
+```
+
+_Based on the structure, please let me know which files you need to review to help me implement the feature or fix the bug._
+
+## Instructions for Exporting file structure
+**For Windows:**
+
+```bash
+tree /F /A > project-structure.txt
+```
+
+Here, `/F` lists all files, and `/A` uses ASCII characters for a cleaner look.
