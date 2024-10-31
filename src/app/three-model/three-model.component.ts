@@ -190,7 +190,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
   private prepareExplodeAnimation(): void {
     this.model.traverse((child) => {
       if (child instanceof THREE.Mesh) {
-        // Skip the large part ("Body1") and only set up explosion for smaller parts
+        // Skip the large part ("Body1:1") and only set up explosion for smaller parts
         if (child.name === 'Body1:1') {
           console.log(`Skipping explosion setup for large part: ${child.name}`);
           return;
@@ -199,10 +199,23 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
         console.log(`Setting up explosion for small part: ${child.name}`);
         child.userData['originalPosition'] = child.position.clone();
 
-        // Adjust explosion distance as needed
-        const explodedPosition = child.position.clone().add(new THREE.Vector3(5, 5, 5));
+        // Define explosion direction for each smaller part
+        let explodedPosition;
+        switch (child.name) {
+          case 'Body1':
+            explodedPosition = child.position.clone().add(new THREE.Vector3(0, 0, 12)); // Move along x-axis
+            break;
+          case 'Body1:2':
+            explodedPosition = child.position.clone().add(new THREE.Vector3(12, 0, 0)); // Move along y-axis
+            break;
+          case 'Body1:3':
+            explodedPosition = child.position.clone().add(new THREE.Vector3(0, -12, 0)); // Move along z-axis
+            break;
+          default:
+            explodedPosition = child.position.clone(); // Fallback, no movement
+        }
 
-        // Create tweens for the smaller parts only
+        // Create tweens for the explosion and implosion
         child.userData['tweenExplode'] = new Tween(child.position, this.tweenGroup)
           .to({ x: explodedPosition.x, y: explodedPosition.y, z: explodedPosition.z }, 1000)
           .easing(Easing.Cubic.Out);
@@ -213,6 +226,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
       }
     });
   }
+
 
 
 
