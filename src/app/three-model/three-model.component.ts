@@ -72,7 +72,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
     );
 
     // Position the camera for an isometric view
-    this.camera.position.set(5, -5, 5); // Position for the opposite corner
+    this.camera.position.set(5, 5, 5); // Position for the opposite corner
     this.camera.lookAt(0, 0, 0); // Keep it pointed at the center of the scene
 
     // Set renderer background color to Tailwind white
@@ -127,6 +127,8 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
       (obj) => {
         console.log("Model loaded successfully!");
         this.model = obj;
+        this.model.rotation.z = Math.PI/2; // Rotate 90 degrees
+
 
         // Scale and center the model as a whole
         this.model.scale.set(0.25, 0.25, 0.25);
