@@ -70,19 +70,18 @@
 <div class="border-2 border-black h-full w-full flex flex-row justify-between p-0"><!-- Thick Border Inside Markers -->
   <!-- Main Content Area -->
 
-  <!-- 3d model rendering -->
   <div class="three-container-wrapper relative z-0 w-full h-[80vh] overflow-hidden">
-    <app-three-model></app-three-model>
+    <router-outlet></router-outlet>
   </div>
 
   <!-- Navigation Box (Title Block) -->
   <div class="absolute bottom-10 right-10 bg-white border-2 border-black p-4 shadow-md" style="width: 250px;">
       <h3 class="text-lg font-bold text-center mb-2">Navigation</h3>
       <nav class="flex flex-col">
-          <a routerLink="/about" class="uppercase text-md font-semibold border-2 border-black p-2 mb-1 hover:bg-gray-200">About</a>
-          <a routerLink="/resume" class="uppercase text-md font-semibold border-2 border-black p-2 mb-1 hover:bg-gray-200">Resume</a>
-          <a routerLink="/portfolio" class="uppercase text-md font-semibold border-2 border-black p-2 mb-1 hover:bg-gray-200">Portfolio</a>
-          <a routerLink="/wiki" class="uppercase text-md font-semibold border-2 border-black p-2 hover:bg-gray-200">Wiki</a>
+        <a routerLink="/about" routerLinkActive="active" class="uppercase text-md font-semibold border-2 border-black p-2 mb-1 hover:bg-gray-200" [routerLinkActiveOptions]="{exact: true}">About</a>
+        <a routerLink="/resume" routerLinkActive="active" class="uppercase text-md font-semibold border-2 border-black p-2 mb-1 hover:bg-gray-200" [routerLinkActiveOptions]="{exact: true}">Resume</a>
+        <a routerLink="/portfolio" routerLinkActive="active" class="uppercase text-md font-semibold border-2 border-black p-2 mb-1 hover:bg-gray-200" [routerLinkActiveOptions]="{exact: true}">Portfolio</a>
+        <a routerLink="/wiki" routerLinkActive="active" class="uppercase text-md font-semibold border-2 border-black p-2 hover:bg-gray-200" [routerLinkActiveOptions]="{exact: true}">Wiki</a>
       </nav>
   </div>
 </div>
