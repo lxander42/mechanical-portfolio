@@ -1,0 +1,19 @@
+{
+  "rewrites": [
+    {
+      "source": "/wiki/",
+      "destination": "https://publish.obsidian.md/serve?url=mechanical-portfolio.vercel.app/wiki"
+    },
+    {
+      "source": "/wiki/:path*",
+      "destination": "https://publish.obsidian.md/serve?url=mechanical-portfolio.vercel.app/wiki/:path*"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/debug",
+      "destination": "https://httpbin.org/get",
+      "permanent": false
+    }
+  ]
+}
