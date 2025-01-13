@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/wiki/",
-      "destination": "https://publish.obsidian.md/serve?url=mechanical-portfolio.vercel.app/wiki/README"
+      "destination": "https://publish.obsidian.md/serve?url=mechanical-portfolio.vercel.app/wiki"
     },
     {
       "source": "/wiki/:path*",
