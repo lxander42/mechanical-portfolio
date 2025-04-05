@@ -227,11 +227,6 @@ export class ThreeModelComponent implements OnInit, AfterViewInit {
     });
   }
 
-
-
-
-
-
   private toggleExplode(): void {
     this.model.traverse((child) => {
       if (child instanceof THREE.Mesh && child.userData['tweenExplode'] && child.userData['tweenImplode']) {
