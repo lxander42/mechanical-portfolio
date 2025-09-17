@@ -1,0 +1,103 @@
+<div class="blueprint">
+  <div class="blueprint__frame">
+    <div class="blueprint__markers blueprint__markers--vertical blueprint__markers--left" aria-hidden="true">
+      <span
+        *ngFor="let label of rowLabelsDesktop"
+        class="blueprint__marker blueprint__marker--vertical blueprint__marker--desktop"
+      >
+        {{ label }}
+      </span>
+      <span
+        *ngFor="let label of rowLabelsMobile"
+        class="blueprint__marker blueprint__marker--vertical blueprint__marker--mobile"
+      >
+        {{ label }}
+      </span>
+    </div>
+
+    <div class="blueprint__inner">
+      <div class="blueprint__markers blueprint__markers--horizontal blueprint__markers--top" aria-hidden="true">
+        <span
+          *ngFor="let label of columnLabelsDesktop"
+          class="blueprint__marker blueprint__marker--horizontal blueprint__marker--desktop"
+        >
+          {{ label }}
+        </span>
+        <span
+          *ngFor="let label of columnLabelsMobile"
+          class="blueprint__marker blueprint__marker--horizontal blueprint__marker--mobile"
+        >
+          {{ label }}
+        </span>
+      </div>
+
+      <div class="blueprint__content">
+        <section class="blueprint__viewer" aria-labelledby="viewer-heading">
+          <header class="blueprint__section-header">
+            <h2 id="viewer-heading">Interactive Overview</h2>
+            <p>Use the 3D model to jump straight to the section you want to explore.</p>
+          </header>
+          <app-model-viewer
+            class="blueprint__model"
+            [sections]="sections"
+            (sectionActivated)="handleSectionActivated($event)"
+          ></app-model-viewer>
+        </section>
+
+        <aside class="blueprint__nav" aria-labelledby="navigation-heading">
+          <h2 id="navigation-heading">Navigation</h2>
+          <nav>
+            <a
+              *ngFor="let section of sections"
+              [routerLink]="section.route"
+              routerLinkActive="is-active"
+              [routerLinkActiveOptions]="{ exact: true }"
+              class="blueprint__nav-link"
+            >
+              <span class="blueprint__nav-label">{{ section.label }}</span>
+              <span *ngIf="section.description" class="blueprint__nav-description">{{ section.description }}</span>
+            </a>
+          </nav>
+          <footer class="blueprint__nav-footer">
+            <p>Last updated: <span>{{ today | date: 'MMM d, y' }}</span></p>
+            <p>Update <strong>core/data/portfolio-sections.ts</strong> to add new sections.</p>
+          </footer>
+        </aside>
+
+        <section class="blueprint__details" aria-live="polite">
+          <router-outlet></router-outlet>
+        </section>
+      </div>
+
+      <div class="blueprint__markers blueprint__markers--horizontal blueprint__markers--bottom" aria-hidden="true">
+        <span
+          *ngFor="let label of columnLabelsDesktop"
+          class="blueprint__marker blueprint__marker--horizontal blueprint__marker--desktop"
+        >
+          {{ label }}
+        </span>
+        <span
+          *ngFor="let label of columnLabelsMobile"
+          class="blueprint__marker blueprint__marker--horizontal blueprint__marker--mobile"
+        >
+          {{ label }}
+        </span>
+      </div>
+    </div>
+
+    <div class="blueprint__markers blueprint__markers--vertical blueprint__markers--right" aria-hidden="true">
+      <span
+        *ngFor="let label of rowLabelsDesktop"
+        class="blueprint__marker blueprint__marker--vertical blueprint__marker--desktop"
+      >
+        {{ label }}
+      </span>
+      <span
+        *ngFor="let label of rowLabelsMobile"
+        class="blueprint__marker blueprint__marker--vertical blueprint__marker--mobile"
+      >
+        {{ label }}
+      </span>
+    </div>
+  </div>
+</div>
