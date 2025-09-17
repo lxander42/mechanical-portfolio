@@ -1,10 +1,13 @@
+import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 import { AppComponent } from './app.component';
+import { routes } from './app.routes';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
+      providers: [provideRouter(routes)]
     }).compileComponents();
   });
 
@@ -14,16 +17,16 @@ describe('AppComponent', () => {
     expect(app).toBeTruthy();
   });
 
-  it(`should have the 'mechanical-portfolio' title`, () => {
+  it('should have the correct application title', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
     expect(app.title).toEqual('mechanical-portfolio');
   });
 
-  it('should render title', () => {
+  it('should render the blueprint layout shell', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, mechanical-portfolio');
+    expect(compiled.querySelector('app-blueprint-layout')).not.toBeNull();
   });
 });

@@ -5,7 +5,7 @@ import { Component } from '@angular/core';
   standalone: true,
   imports: [],
   templateUrl: './wiki.component.html',
-  styleUrl: './wiki.component.css'
+  styleUrls: ['./wiki.component.css']
 })
 export class WikiComponent {
 

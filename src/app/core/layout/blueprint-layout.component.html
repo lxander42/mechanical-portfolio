@@ -1,0 +1,97 @@
+<div class="layout">
+  <div class="layout__board" aria-label="Mechanical portfolio navigation board">
+    <div class="layout__outer-frame">
+      <div class="layout__inner-frame">
+        <div class="layout__markers layout__markers--vertical layout__markers--left" aria-hidden="true">
+          <span
+            *ngFor="let label of rowLabelsDesktop"
+            class="layout__marker layout__marker--vertical layout__marker--desktop"
+          >
+            {{ label }}
+          </span>
+          <span
+            *ngFor="let label of rowLabelsMobile"
+            class="layout__marker layout__marker--vertical layout__marker--mobile"
+          >
+            {{ label }}
+          </span>
+        </div>
+
+        <div class="layout__center">
+          <div class="layout__markers layout__markers--horizontal layout__markers--top" aria-hidden="true">
+            <span
+              *ngFor="let label of columnLabelsDesktop"
+              class="layout__marker layout__marker--horizontal layout__marker--desktop"
+            >
+              {{ label }}
+            </span>
+            <span
+              *ngFor="let label of columnLabelsMobile"
+              class="layout__marker layout__marker--horizontal layout__marker--mobile"
+            >
+              {{ label }}
+            </span>
+          </div>
+
+          <div class="layout__canvas">
+            <div class="layout__viewer">
+              <app-model-viewer
+                [sections]="sections"
+                (sectionActivated)="handleSectionActivated($event)"
+              ></app-model-viewer>
+            </div>
+
+            <aside class="layout__nav" aria-labelledby="layout-nav-heading">
+              <h2 id="layout-nav-heading">Navigation</h2>
+              <nav>
+                <a
+                  *ngFor="let section of sections"
+                  [routerLink]="section.route"
+                  routerLinkActive="is-active"
+                  [routerLinkActiveOptions]="{ exact: true }"
+                  class="layout__nav-link"
+                >
+                  {{ section.label }}
+                </a>
+              </nav>
+            </aside>
+          </div>
+
+          <div class="layout__markers layout__markers--horizontal layout__markers--bottom" aria-hidden="true">
+            <span
+              *ngFor="let label of columnLabelsDesktop"
+              class="layout__marker layout__marker--horizontal layout__marker--desktop"
+            >
+              {{ label }}
+            </span>
+            <span
+              *ngFor="let label of columnLabelsMobile"
+              class="layout__marker layout__marker--horizontal layout__marker--mobile"
+            >
+              {{ label }}
+            </span>
+          </div>
+        </div>
+
+        <div class="layout__markers layout__markers--vertical layout__markers--right" aria-hidden="true">
+          <span
+            *ngFor="let label of rowLabelsDesktop"
+            class="layout__marker layout__marker--vertical layout__marker--desktop"
+          >
+            {{ label }}
+          </span>
+          <span
+            *ngFor="let label of rowLabelsMobile"
+            class="layout__marker layout__marker--vertical layout__marker--mobile"
+          >
+            {{ label }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="layout__details">
+    <router-outlet></router-outlet>
+  </section>
+</div>

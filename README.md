@@ -1,76 +1,70 @@
 # Mechanical Portfolio
 
-This project is a **personal portfolio** developed with the MEAN stack (MongoDB, Express, Angular, and Node.js) to showcase my work as a Mechanical Engineer. The portfolio design is inspired by **ASME standard mechanical drawings**, featuring a clean, grid-like layout with monochromatic colors to achieve a professional, blueprint-style aesthetic. The site is deployed on Vercel and includes four main sections: **About, Resume, Portfolio, and Wiki**.
+An Angular-powered portfolio that presents engineering work using an ASME-inspired blueprint layout. The application is designed
+so future updates (human or AI-assisted) are easy to plan and implement.
 
-## Project Overview
+## Quick Start
 
-- **Deployed Website**: [Mechanical Portfolio on Vercel](https://mechanical-portfolio.vercel.app)
-- **Angular CLI Version**: 18.2.10
-- **Sections**: About, Resume, Portfolio, Wiki
-- **Purpose**: A professional online portfolio, designed to mimic the aesthetics of an engineering drawing.
+1. Install dependencies: `npm install`
+2. Run the dev server: `npm start`
+3. Open `http://localhost:4200` in your browser
 
-## Project Structure and Design
+> **Node.js 18+** and **Angular CLI 18.2.10** are recommended. MongoDB is optional—no database is required to run the current UI.
 
-The layout (app.component.html) is designed with elements reminiscent of engineering drawings:
+## Architecture Highlights
 
-- **Grid Layout with Borders**: Thin and thick borders create a structured, compartmentalized look.
-- **Markers and Coordinates**: Vertical and horizontal markers with labeled letters and numbers enhance the blueprint appearance.
-- **Interactive 3D Model**: A dynamic 3D model in three-model.component.html serves as a central navigation feature.
-    - **Hover to Explode**: Upon mouse hover, the model separates into distinct parts.
-    - **Clickable Parts**: Users can click on individual model parts to navigate directly to corresponding sections: About, Resume, Portfolio, and Wiki.
-- **Navigation Block**: A "Navigation" box styled like an engineering title block contains additional links to all sections.
+- **Blueprint layout shell** (`BlueprintLayoutComponent`) draws the borders, markers, and navigation block.
+- **Single source of truth for sections** (`PORTFOLIO_SECTIONS`) keeps navigation, 3D hotspots, and route configuration in sync.
+- **Reusable 3D model viewer** (`ModelViewerComponent`) supports both the procedural placeholder and custom Blender exports in
+  glTF format.
+- **Standalone route components** (`about`, `resume`, `portfolio`, `wiki`) populate the detail panel and reuse shared content
+  styles from `src/styles.css`.
 
-## Getting Started
+See [`src/docs/ARCHITECTURE.md`](src/docs/ARCHITECTURE.md) for a full tour of the folder structure and recommended workflow.
 
-### Prerequisites
+## Customising the Portfolio
 
-- **Node.js**: Version 18.x or newer
-- **Angular CLI**: Version 18.2.10
-- **MongoDB**: Optional, for potential future database features
+### Update Sections & Navigation
 
-### Installation
+1. Edit `src/app/core/data/portfolio-sections.ts` to add or rename sections.
+2. Update `src/app/app.routes.ts` if you add new routes.
+3. Create or edit the component under `src/app/<section-name>/` to change the detail content.
 
-1. Clone the Repository: `git clone https://github.com/lxander42/mechanical-portfolio.git`
-2. Navigate to the project folder: `cd mechanical-portfolio`
-3. Install dependencies: `npm install`
-4. Run the development server: `ng serve`
-5. This will start the application on `http://localhost:4200`
+### Replace the 3D Model
 
-## File Overview
+1. Export a `.glb` file from Blender following [`THREE-MODEL-GUIDE.md`](src/docs/THREE-MODEL-GUIDE.md).
+2. Copy the file into `assets/models/`.
+3. Point `<app-model-viewer>` at the file via the `modelUrl` input in
+   `src/app/core/layout/blueprint-layout.component.html`.
+4. Ensure mesh names in Blender match the `meshName` in `PORTFOLIO_SECTIONS` so clicks route correctly.
 
-- **app.component.html**: Contains the main layout with ASME-inspired borders, markers, and the navigation box.
-- **three-model.component.html**: Houses the interactive 3D model display container with hover and click events.
-- **app.component.ts** and **three-model.component.ts**: Include TypeScript logic for rendering and controlling the 3D model's hover and click interactivity.
+### Add a New Feature Panel
 
-## Features
+1. Generate a standalone component (`ng generate component feature-name --standalone`).
+2. Place shared models/configuration under `src/app/core` and reusable widgets under `src/app/features`.
+3. Import the component into the relevant route or update the layout to expose it.
+4. Document the change in `/src/docs` so future contributors understand the design.
 
-- **ASME Blueprint Style**: Utilizes CSS and Angular components to achieve a blueprint-like, engineering-drawing style.
-- **Responsive Design**: Markers and layout adjust for both desktop and mobile views.
-- **Interactive 3D Model**: Hovering on the 3D model causes an "exploded view," separating the model into clickable parts, each linked to a section of the portfolio.
+## Available Scripts
 
-## Future Enhancements
+| Command | Description |
+| --- | --- |
+| `npm start` | Run the dev server with live reload (`ng serve`). |
+| `npm run build` | Produce an optimised production build. |
+| `npm test` | Execute the Angular unit test suite. |
 
-- **Database Integration**: MongoDB setup to store portfolio project data.
-- **Dark Mode Toggle**: An option for switching between light and dark themes.
-- **3D Model Animations**: Additional animations to further enhance the model’s interactivity.
+## Documentation
 
-## Prompt for Feature additions
+- [`src/docs/ARCHITECTURE.md`](src/docs/ARCHITECTURE.md): explains project layout and contribution flow.
+- [`src/docs/THREE-MODEL-GUIDE.md`](src/docs/THREE-MODEL-GUIDE.md): how to prepare and wire 3D assets exported from Blender.
+- [`assets/models/README.md`](assets/models/README.md): quick reference for storing model files.
 
-_I am working on an Angular project for my Mechanical Portfolio. This portfolio is a MEAN stack project inspired by ASME standard mechanical drawings, featuring a clean, monochromatic design with a grid layout. It includes four sections (About, Resume, Portfolio, and Wiki) and an interactive 3D model that separates into parts on hover, with each part clickable to navigate to different sections. The Angular project uses standalone components with no `app.module.ts`._
+## Need Help?
 
-_I would like assistance with [adding a feature / fixing a bug]._
+When asking for new features or bug fixes, share:
 
-> **Feature / Bug Description**: [Describe your desired feature or bug in detail]
+- The desired outcome and how it should behave.
+- Relevant files (component, service, data config).
+- Screenshots or screen recordings when visual changes are involved.
 
-_To assist with choosing the files for upload, I have uploaded a text file with my project structure_
-
-_Based on the structure, please let me know which files you need to review to help me implement the feature or fix the bug.Please specify the exact files you would like me to upload._
-
-## Instructions for Exporting file structure
-**For Windows:**
-
-```bash
-tree /F /A > project-structure.txt
-```
-
-Here, `/F` lists all files, and `/A` uses ASCII characters for a cleaner look.
+The clearer the request, the easier it is to implement future updates.
