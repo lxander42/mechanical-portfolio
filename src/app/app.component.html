@@ -1,1 +1,110 @@
-<app-blueprint-layout></app-blueprint-layout>
+<div class="relative w-full h-screen max-w-screen-xl mx-auto mt-4 border-2 border-black p-6">
+  <div class="inset-0 border-1 border-black pointer-events-none"><!-- Outer Thin Border -->
+      <div class="absolute inset-0 flex justify-center items-center"><!-- Inner Container for Markers -->
+        <div class="flex flex-col justify-between h-full w-6"><!-- Left Vertical Markers -->
+          <!-- Left Vertical Markers -->
+          <span class="hidden lg:flex border-b border-black h-1/6 items-center justify-center font-bold">A</span>
+          <span class="hidden lg:flex border-b border-black h-1/6 items-center justify-center font-bold">B</span>
+          <span class="hidden lg:flex border-b border-black h-1/6 items-center justify-center font-bold">C</span>
+          <span class="hidden lg:flex border-b border-black h-1/6 items-center justify-center font-bold">D</span>
+          <span class="hidden lg:flex border-b border-black h-1/6 items-center justify-center font-bold">E</span>
+          <span class="hidden lg:flex h-1/6 items-center justify-center font-bold">F</span>
+
+          <!-- Mobile: 4 Vertical Markers -->
+          <span class="flex lg:hidden border-b border-black h-1/4 items-center justify-center font-bold">A</span>
+          <span class="flex lg:hidden border-b border-black h-1/4 items-center justify-center font-bold">B</span>
+          <span class="flex lg:hidden border-b border-black h-1/4 items-center justify-center font-bold">C</span>
+          <span class="flex lg:hidden h-1/4 items-center justify-center font-bold">D</span>
+        </div>
+        <div class="flex flex-col justify-between h-full w-full"><!-- Horizontal Markers -->
+            <div class="flex justify-between h-6">
+                <span class="hidden lg:flex border-r border-black w-1/8 items-center justify-center font-bold">1</span>
+                <span class="hidden lg:flex border-r border-black w-1/8 items-center justify-center font-bold">2</span>
+                <span class="hidden lg:flex border-r border-black w-1/8 items-center justify-center font-bold">3</span>
+                <span class="hidden lg:flex border-r border-black w-1/8 items-center justify-center font-bold">4</span>
+                <span class="hidden lg:flex border-r border-black w-1/8 items-center justify-center font-bold">5</span>
+                <span class="hidden lg:flex border-r border-black w-1/8 items-center justify-center font-bold">6</span>
+                <span class="hidden lg:flex border-r border-black w-1/8 items-center justify-center font-bold">7</span>
+                <span class="hidden lg:flex w-1/8 items-center justify-center font-bold">8</span>
+
+                <!-- Mobile: 2 Horizontal Markers -->
+                <span class="flex lg:hidden border-r border-black w-1/4 items-center justify-center font-bold">1</span>
+                <span class="flex lg:hidden border-r border-black w-1/4 items-center justify-center font-bold">2</span>
+                <span class="flex lg:hidden border-r border-black w-1/4 items-center justify-center font-bold">3</span>
+                <span class="flex lg:hidden w-1/4 items-center justify-center font-bold">4</span>
+            </div>
+
+            <div class="flex bottom-0 left-0 w-full h-6 flex justify-between">
+                <span class="hidden lg:flex border-r border-black w-1/8 items-center justify-center font-bold">1</span>
+                <span class="hidden lg:flex border-r border-black w-1/8 items-center justify-center font-bold">2</span>
+                <span class="hidden lg:flex border-r border-black w-1/8 items-center justify-center font-bold">3</span>
+                <span class="hidden lg:flex border-r border-black w-1/8 items-center justify-center font-bold">4</span>
+                <span class="hidden lg:flex border-r border-black w-1/8 items-center justify-center font-bold">5</span>
+                <span class="hidden lg:flex border-r border-black w-1/8 items-center justify-center font-bold">6</span>
+                <span class="hidden lg:flex border-r border-black w-1/8 items-center justify-center font-bold">7</span>
+                <span class="hidden lg:flex w-1/8 items-center justify-center font-bold">8</span>
+
+                <!-- Mobile: 2 Horizontal Markers -->
+                <span class="flex lg:hidden border-r border-black w-1/4 items-center justify-center font-bold">1</span>
+                <span class="flex lg:hidden border-r border-black w-1/4 items-center justify-center font-bold">2</span>
+                <span class="flex lg:hidden border-r border-black w-1/4 items-center justify-center font-bold">3</span>
+                <span class="flex lg:hidden w-1/4 items-center justify-center font-bold">4</span>
+            </div>
+        </div>
+        <div class="flex flex-col justify-between h-full w-6"><!-- Right Vertical Markers -->
+            <span class="hidden lg:flex border-b border-black h-1/6 items-center justify-center font-bold">A</span>
+            <span class="hidden lg:flex border-b border-black h-1/6 items-center justify-center font-bold">B</span>
+            <span class="hidden lg:flex border-b border-black h-1/6 items-center justify-center font-bold">C</span>
+            <span class="hidden lg:flex border-b border-black h-1/6 items-center justify-center font-bold">D</span>
+            <span class="hidden lg:flex border-b border-black h-1/6 items-center justify-center font-bold">E</span>
+            <span class="hidden lg:flex h-1/6 items-center justify-center font-bold">F</span>
+
+            <span class="flex lg:hidden border-b border-black h-1/4 items-center justify-center font-bold">A</span>
+            <span class="flex lg:hidden border-b border-black h-1/4 items-center justify-center font-bold">B</span>
+            <span class="flex lg:hidden border-b border-black h-1/4 items-center justify-center font-bold">C</span>
+            <span class="flex lg:hidden h-1/4 items-center justify-center font-bold">D</span>
+        </div>
+      </div>
+  </div>
+
+<div class="border-2 border-black h-full w-full flex flex-row justify-between p-0"><!-- Thick Border Inside Markers -->
+  <!-- Main Content Area -->
+
+  <!-- 3d model rendering -->
+  <div class="three-container-wrapper relative z-0 w-full h-[80vh] overflow-hidden">
+    <app-three-model></app-three-model>
+  </div>
+
+  <!-- Navigation Box (Title Block) -->
+  <div class="absolute bottom-10 right-10 bg-white border-2 border-black p-4 shadow-md" style="width: 250px;">
+      <h3 class="text-lg font-bold text-center mb-2">Navigation</h3>
+      <nav class="flex flex-col">
+        <a
+          routerLink="/about"
+          class="uppercase text-md font-semibold border-2 border-black p-2 mb-1 hover:bg-gray-200"
+        >
+          About
+        </a>
+        <a
+          routerLink="/resume"
+          class="uppercase text-md font-semibold border-2 border-black p-2 mb-1 hover:bg-gray-200"
+        >
+          Resume
+        </a>
+        <a
+          routerLink="/portfolio"
+          class="uppercase text-md font-semibold border-2 border-black p-2 mb-1 hover:bg-gray-200"
+        >
+          Portfolio
+        </a>
+        <a
+          routerLink="/wiki"
+          class="uppercase text-md font-semibold border-2 border-black p-2 hover:bg-gray-200"
+        >
+          Wiki
+        </a>
+      </nav>
+  </div>
+</div>
+
+</div>

@@ -1,13 +1,16 @@
+import { CommonModule } from '@angular/common'; // Import CommonModule
 import { Component } from '@angular/core';
-import { BlueprintLayoutComponent } from './core/layout/blueprint-layout.component';
+import { RouterOutlet } from '@angular/router';
+import { ThreeModelComponent } from './three-model/three-model.component'; // Import the component
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [BlueprintLayoutComponent],
+  imports: [RouterOutlet, CommonModule, ThreeModelComponent],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css']
 })
 export class AppComponent {
   title = 'mechanical-portfolio';
+  todayDate = new Date();  // Initialize the current date
 }
