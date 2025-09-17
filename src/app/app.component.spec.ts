@@ -23,10 +23,10 @@ describe('AppComponent', () => {
     expect(app.title).toEqual('mechanical-portfolio');
   });
 
-  it('should render the blueprint layout shell', () => {
+  it('should render the three-model viewer', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('app-blueprint-layout')).not.toBeNull();
+    expect(compiled.querySelector('app-three-model')).not.toBeNull();
   });
 });
