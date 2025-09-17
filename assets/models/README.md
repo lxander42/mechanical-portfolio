@@ -12,15 +12,15 @@ assets/
       normal.png
 ```
 
-Update the `modelUrl` input of `ModelViewerComponent` (used in
-`src/app/core/layout/blueprint-layout.component.html`) to point at your exported file, for example:
+Update the `modelUrl` input of `ThreeModelComponent`
+(`src/app/core/layout/blueprint-layout.component.html`) to point at your exported file, for example:
 
 ```html
-<app-model-viewer
+<app-three-model
   [sections]="sections"
   modelUrl="assets/models/portfolio.glb"
   (sectionActivated)="handleSectionActivated($event)"
-></app-model-viewer>
+></app-three-model>
 ```
 
 The component will automatically map mesh names to the entries defined in `PORTFOLIO_SECTIONS`. Make sure the mesh names in

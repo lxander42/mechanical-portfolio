@@ -22,13 +22,13 @@ export from Blender whenever you are ready.
 ## Wiring the Model into the App
 
 1. Copy the exported `.glb` (and textures if any) into `assets/models/`.
-2. Edit `blueprint-layout.component.html` to pass the file path:
+2. Edit `blueprint-layout.component.html` to pass the file path through `<app-three-model>`:
    ```html
-   <app-model-viewer
+   <app-three-model
      [sections]="sections"
      modelUrl="assets/models/portfolio.glb"
      (sectionActivated)="handleSectionActivated($event)"
-   ></app-model-viewer>
+   ></app-three-model>
    ```
 3. Update `PORTFOLIO_SECTIONS` if you changed the section names or added new ones.
 4. Run `npm start` and verify that clicking each mesh routes to the correct page.

@@ -10,6 +10,7 @@ src/
   app/
     core/            # Layout shell, navigation data, app-wide models
     features/        # Self-contained UI features (e.g. 3D model viewer)
+    three-model/     # Thin wrapper around the Three.js viewer for layout compatibility
     about/           # Feature routes rendered inside the layout shell
     resume/
     portfolio/
@@ -28,7 +29,8 @@ src/
 ## Layout & Navigation Flow
 
 1. `AppComponent` renders `<app-blueprint-layout>`.
-2. `BlueprintLayoutComponent` draws the ASME-inspired frame, renders the `ModelViewerComponent` and the navigation block, and
+2. `BlueprintLayoutComponent` draws the ASME-inspired frame, renders the `ThreeModelComponent` wrapper (which hosts the reusable
+   `ModelViewerComponent`) and the navigation block, and
    exposes a `<router-outlet>` for the active section content.
 3. Sections are defined once in `core/data/portfolio-sections.ts`. The same data powers:
    - Navigation links on the right-hand side.
@@ -64,12 +66,14 @@ That is all—navigation, layout, and model hotspots will automatically discover
 
 ## Working with the 3D Model
 
-- The `ModelViewerComponent` accepts an optional `modelUrl`. When provided it loads a glTF (`.glb`/`.gltf`) file from
-  `assets/models`. Without a file, a procedural placeholder is shown so the UI remains functional.
+- The `ThreeModelComponent` passes inputs through to the underlying `ModelViewerComponent`. Set the optional `modelUrl`
+  binding to load a glTF (`.glb`/`.gltf`) file from `assets/models`. Without a file, a procedural placeholder is shown so the
+  UI remains functional.
+- `ThreeModelComponent` also exposes `autoRotateSpeed` so you can adjust or disable the placeholder animation directly from the
+  layout.
 - Mesh names (from Blender) are matched against the `meshName` in `PORTFOLIO_SECTIONS`. When a user clicks a mesh the
   corresponding route is activated.
 - Animations inside the glTF file are played automatically via `THREE.AnimationMixer`.
-- The component exposes the `autoRotateSpeed` input to adjust rotation. Setting it to `0` disables rotation entirely.
 
 See [`THREE-MODEL-GUIDE.md`](./THREE-MODEL-GUIDE.md) for export and naming tips.
 

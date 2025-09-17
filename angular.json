@@ -30,8 +30,7 @@
                 "input": "src/assets",
                 "output": "/assets"
               }
-            ]
-            ,
+            ],
             "styles": [
               "src/styles.css"
             ],
@@ -99,8 +98,7 @@
                 "input": "src/assets",
                 "output": "/assets"
               }
-            ]
-            ,
+            ],
             "styles": [
               "src/styles.css"
             ],

@@ -15,8 +15,8 @@ so future updates (human or AI-assisted) are easy to plan and implement.
 
 - **Blueprint layout shell** (`BlueprintLayoutComponent`) draws the borders, markers, and navigation block.
 - **Single source of truth for sections** (`PORTFOLIO_SECTIONS`) keeps navigation, 3D hotspots, and route configuration in sync.
-- **Reusable 3D model viewer** (`ModelViewerComponent`) supports both the procedural placeholder and custom Blender exports in
-  glTF format.
+- **Reusable 3D model viewer** (`ThreeModelComponent` wrapping `ModelViewerComponent`) supports both the procedural placeholder
+  and custom Blender exports in glTF format.
 - **Standalone route components** (`about`, `resume`, `portfolio`, `wiki`) populate the detail panel and reuse shared content
   styles from `src/styles.css`.
 
@@ -34,7 +34,7 @@ See [`src/docs/ARCHITECTURE.md`](src/docs/ARCHITECTURE.md) for a full tour of th
 
 1. Export a `.glb` file from Blender following [`THREE-MODEL-GUIDE.md`](src/docs/THREE-MODEL-GUIDE.md).
 2. Copy the file into `assets/models/`.
-3. Point `<app-model-viewer>` at the file via the `modelUrl` input in
+3. Point `<app-three-model>` at the file by updating the `modelUrl` binding in
    `src/app/core/layout/blueprint-layout.component.html`.
 4. Ensure mesh names in Blender match the `meshName` in `PORTFOLIO_SECTIONS` so clicks route correctly.
 

@@ -35,10 +35,12 @@
 
           <div class="layout__canvas">
             <div class="layout__viewer">
-              <app-model-viewer
+              <app-three-model
                 [sections]="sections"
+                [modelUrl]="modelUrl"
+                [autoRotateSpeed]="autoRotateSpeed"
                 (sectionActivated)="handleSectionActivated($event)"
-              ></app-model-viewer>
+              ></app-three-model>
             </div>
 
             <aside class="layout__nav" aria-labelledby="layout-nav-heading">
