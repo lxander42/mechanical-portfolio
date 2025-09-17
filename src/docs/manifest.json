@@ -1,0 +1,12 @@
+[
+  {
+    "title": "Architecture Overview",
+    "description": "High-level view of the mechanical portfolio site.",
+    "file": "ARCHITECTURE.md"
+  },
+  {
+    "title": "3D Model Guide",
+    "description": "Details about interacting with the 3D cube system.",
+    "file": "THREE-MODEL-GUIDE.md"
+  }
+]

@@ -1,7 +1,7 @@
-import { CommonModule } from '@angular/common'; // Import CommonModule
-import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
-import { ThreeModelComponent } from './three-model/three-model.component'; // Import the component
+import { CommonModule } from '@angular/common';
+import { Component, ViewChild } from '@angular/core';
+import { Router, RouterOutlet } from '@angular/router';
+import { ThreeModelComponent, SectionEvent } from './three-model/three-model.component';
 
 @Component({
   selector: 'app-root',
@@ -12,5 +12,28 @@ import { ThreeModelComponent } from './three-model/three-model.component'; // Im
 })
 export class AppComponent {
   title = 'mechanical-portfolio';
-  todayDate = new Date();  // Initialize the current date
+  todayDate = new Date();
+  showContent = false;
+  activeSection: SectionEvent['key'] | null = null;
+
+  @ViewChild(ThreeModelComponent)
+  private threeModel?: ThreeModelComponent;
+
+  constructor(private router: Router) {}
+
+  handleSectionFocus(event: SectionEvent): void {
+    this.activeSection = event.key;
+    this.showContent = false;
+    void this.router.navigate(['/', event.key]);
+  }
+
+  handleSectionReveal(): void {
+    this.showContent = true;
+  }
+
+  closeContent(): void {
+    this.showContent = false;
+    this.activeSection = null;
+    this.threeModel?.resetSelection();
+  }
 }
