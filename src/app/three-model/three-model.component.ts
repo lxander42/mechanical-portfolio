@@ -107,9 +107,11 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const mesh = this.activeMesh;
     this.activeMesh = null;
+    this.hoveredMesh = null;
+    this.updateHoverAppearance();
 
     if (!mesh) {
-      this.setExploded(true);
+      this.setExploded(false);
       return;
     }
 
@@ -155,7 +157,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       .start();
 
     this.selectionInProgress = false;
-    this.setExploded(true);
+    this.setExploded(false);
   }
 
   private initScene(): void {
@@ -253,7 +255,6 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.scene.add(this.model);
         this.prepareExplodeAnimation();
-        this.setExploded(true);
       },
       undefined,
       (error) => {
@@ -368,8 +369,13 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private handlePointerMove(event: PointerEvent): void {
-    if (!this.model || !this.isExploded || this.selectionInProgress) {
+    if (!this.model || this.selectionInProgress) {
       return;
+    }
+
+    if (!this.isExploded) {
+      this.setExploded(true);
+      this.hoveredMesh = null;
     }
 
     const rect = this.canvasEl.getBoundingClientRect();
@@ -387,11 +393,14 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private handlePointerLeave(): void {
-    if (!this.hoveredMesh) {
-      return;
+    if (this.hoveredMesh) {
+      this.hoveredMesh = null;
+      this.updateHoverAppearance();
     }
-    this.hoveredMesh = null;
-    this.updateHoverAppearance();
+
+    if (!this.selectionInProgress) {
+      this.setExploded(false);
+    }
   }
 
   private handlePointerClick(): void {
