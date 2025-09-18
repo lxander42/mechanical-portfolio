@@ -12,7 +12,7 @@ import {
   PLATFORM_ID
 } from '@angular/core';
 import * as THREE from 'three';
-import { OBJLoader } from 'three-stdlib';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { Tween, Group, Easing } from '@tweenjs/tween.js';
 
 export type SectionKey = 'about' | 'resume' | 'portfolio' | 'wiki';
