@@ -1,6 +1,10 @@
 {
   "name": "mechanical-portfolio",
   "version": "0.0.0",
+  "engines": {
+    "node": ">=18 <19",
+    "npm": ">=9"
+  },
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -48,5 +52,15 @@
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "typescript": "~5.5.2"
+  },
+  "overrides": {
+    "chokidar": "^3.6.0",
+    "lmdb": "^3.4.2",
+    "@angular-devkit/build-angular": {
+      "lmdb": "^3.4.2"
+    },
+    "@angular/build": {
+      "lmdb": "^3.4.2"
+    }
   }
 }
