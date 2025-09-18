@@ -1,0 +1,64 @@
+.three-container-wrapper {
+  position: relative;
+}
+
+.content-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+  padding: 1.5rem;
+}
+
+.content-overlay--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.content-panel {
+  width: min(48rem, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  border: 2px solid #000;
+  background-color: #fff;
+  box-shadow: 8px 8px 0 0 #000;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.content-close {
+  align-self: flex-end;
+  border: 2px solid #000;
+  background: #fff;
+  color: #000;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0.5rem 1rem;
+  text-transform: uppercase;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.content-close:hover,
+.content-close:focus {
+  background: #000;
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .content-panel {
+    padding: 1.5rem;
+    box-shadow: 4px 4px 0 0 #000;
+  }
+
+  .content-close {
+    width: 100%;
+  }
+}

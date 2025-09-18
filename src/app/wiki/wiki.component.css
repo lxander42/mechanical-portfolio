@@ -1,0 +1,133 @@
+:host {
+  display: block;
+  color: #111827;
+}
+
+.wiki-layout {
+  display: grid;
+  grid-template-columns: minmax(12rem, 18rem) 1fr;
+  gap: 1.5rem;
+}
+
+.wiki-nav {
+  border: 2px solid #111827;
+  padding: 1rem;
+  background: #f3f4f6;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.wiki-nav h2 {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.wiki-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.wiki-nav li button {
+  width: 100%;
+  border: 2px solid #111827;
+  background: #fff;
+  padding: 0.75rem;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.wiki-nav li.active button,
+.wiki-nav li button:hover,
+.wiki-nav li button:focus {
+  background: #111827;
+  color: #fff;
+}
+
+.wiki-nav .title {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.85rem;
+}
+
+.wiki-nav .description {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.wiki-content {
+  border: 2px solid #111827;
+  padding: 1.5rem;
+  background: #ffffff;
+  overflow-y: auto;
+  max-height: 60vh;
+}
+
+.status {
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.status--error {
+  color: #b91c1c;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 1.5rem;
+}
+
+.markdown h1 {
+  font-size: 1.6rem;
+}
+
+.markdown h2 {
+  font-size: 1.2rem;
+}
+
+.markdown h3 {
+  font-size: 1rem;
+}
+
+.markdown p,
+.markdown li {
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.markdown pre {
+  padding: 1rem;
+  background: #111827;
+  color: #f8fafc;
+  overflow-x: auto;
+}
+
+.markdown a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+@media (max-width: 960px) {
+  .wiki-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .wiki-content {
+    max-height: none;
+  }
+}

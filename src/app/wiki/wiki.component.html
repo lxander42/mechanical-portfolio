@@ -1,1 +1,25 @@
-<p>wiki works!</p>
+<section class="wiki-layout">
+  <aside class="wiki-nav">
+    <h2>Documents</h2>
+    <ul>
+      <li
+        *ngFor="let entry of entries()"
+        [class.active]="activeDoc()?.entry?.file === entry.file"
+      >
+        <button type="button" (click)="loadDoc(entry)">
+          <span class="title">{{ entry.title }}</span>
+          <span class="description">{{ entry.description }}</span>
+        </button>
+      </li>
+    </ul>
+  </aside>
+  <article class="wiki-content" (click)="handleContentClick($event)">
+    <div *ngIf="loading()" class="status">Loading documentation&hellip;</div>
+    <div *ngIf="!loading() && error()" class="status status--error">{{ error() }}</div>
+    <div
+      *ngIf="!loading() && !error() && activeDoc()"
+      class="markdown"
+      [innerHTML]="activeDoc()?.content"
+    ></div>
+  </article>
+</section>

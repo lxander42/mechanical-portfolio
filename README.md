@@ -5,11 +5,12 @@ so future updates (human or AI-assisted) are easy to plan and implement.
 
 ## Quick Start
 
-1. Install dependencies: `npm install`
-2. Run the dev server: `npm start`
-3. Open `http://localhost:4200` in your browser
+1. Use the pinned toolchain: `nvm use` (or install Node.js 20.x manually).
+2. Install dependencies: `npm ci`
+3. Run the dev server: `npm start`
+4. Open `http://localhost:4200` in your browser.
 
-> **Node.js 18+** and **Angular CLI 18.2.10** are recommended. MongoDB is optional—no database is required to run the current UI.
+> **Node.js 20.x** and **npm 9+** are required. MongoDB is optional—no database is required to run the current UI.
 
 ## Architecture Highlights
 
