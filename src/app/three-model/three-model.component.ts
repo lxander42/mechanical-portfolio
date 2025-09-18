@@ -42,7 +42,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private scene!: THREE.Scene;
   private camera!: THREE.OrthographicCamera;
   private renderer!: THREE.WebGLRenderer;
-  private model!: THREE.Object3D;
+  private modelGroup!: THREE.Group;
   private modelCenter = new THREE.Vector3();
   private isExploded = false;
   private tweenGroup = new Group();
@@ -102,7 +102,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   resetSelection(): void {
-    if (!this.model) {
+    if (!this.modelGroup) {
       return;
     }
 
@@ -218,20 +218,23 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private loadModel(): void {
     const loader = new OBJLoader();
-    const modelPath = new URL('assets/model.obj', this.document.baseURI).toString();
+    const modelPath = 'assets/model.obj';
 
     loader.load(
       modelPath,
       (obj) => {
-        this.model = obj;
-        this.model.rotation.z = Math.PI / 2;
-        this.model.scale.set(0.25, 0.25, 0.25);
+        this.modelGroup = new THREE.Group();
+        this.modelGroup.add(obj);
+        this.modelGroup.rotation.z = Math.PI / 2;
+        this.modelGroup.scale.set(0.25, 0.25, 0.25);
+
+        this.scene.add(this.modelGroup);
 
         this.recenterModel();
 
         this.navMeshes = [];
 
-        this.model.traverse((child) => {
+        this.modelGroup.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
             child.material = material;
@@ -253,7 +256,6 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
           }
         });
 
-        this.scene.add(this.model);
         this.prepareExplodeAnimation();
       },
       undefined,
@@ -264,24 +266,25 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private recenterModel(): void {
-    if (!this.model) {
+    if (!this.modelGroup) {
       return;
     }
 
-    this.model.updateMatrixWorld(true);
+    this.modelGroup.updateMatrixWorld(true);
 
-    const box = new THREE.Box3().setFromObject(this.model);
+    const box = new THREE.Box3().setFromObject(this.modelGroup);
     const center = box.getCenter(new THREE.Vector3());
 
-    this.model.position.sub(center);
-    this.model.updateMatrixWorld(true);
+    this.modelGroup.position.sub(center);
+    this.modelGroup.updateMatrixWorld(true);
 
-    const recenteredBox = new THREE.Box3().setFromObject(this.model);
+    const recenteredBox = new THREE.Box3().setFromObject(this.modelGroup);
     const boundingSphere = recenteredBox.getBoundingSphere(new THREE.Sphere());
 
     this.modelCenter.copy(boundingSphere.center);
 
-    const cameraOffset = new THREE.Vector3(5, 5, 5);
+    const distance = Math.max(boundingSphere.radius * 2.2, 6);
+    const cameraOffset = new THREE.Vector3(distance, distance, distance);
     this.camera.position.copy(this.modelCenter).add(cameraOffset);
     this.camera.lookAt(this.modelCenter);
     this.camera.updateProjectionMatrix();
@@ -317,11 +320,11 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private prepareExplodeAnimation(): void {
-    if (!this.model) {
+    if (!this.modelGroup) {
       return;
     }
 
-    this.model.traverse((child) => {
+    this.modelGroup.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) {
         return;
       }
@@ -357,11 +360,11 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private setExploded(desired: boolean): void {
-    if (!this.model || this.isExploded === desired) {
+    if (!this.modelGroup || this.isExploded === desired) {
       return;
     }
 
-    this.model.traverse((child) => {
+    this.modelGroup.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         const tweenKey = desired ? 'tweenExplode' : 'tweenImplode';
         const tween: Tween<THREE.Vector3> | undefined = child.userData[tweenKey];
@@ -394,7 +397,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private handlePointerMove(event: PointerEvent): void {
-    if (!this.model || this.selectionInProgress) {
+    if (!this.modelGroup || this.selectionInProgress) {
       return;
     }
 
