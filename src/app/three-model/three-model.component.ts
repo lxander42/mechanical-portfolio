@@ -43,6 +43,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private camera!: THREE.OrthographicCamera;
   private renderer!: THREE.WebGLRenderer;
   private model!: THREE.Object3D;
+  private modelCenter = new THREE.Vector3();
   private isExploded = false;
   private tweenGroup = new Group();
   private raycaster = new THREE.Raycaster();
@@ -225,9 +226,17 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         this.model.rotation.z = Math.PI / 2;
         this.model.scale.set(0.25, 0.25, 0.25);
 
+        this.model.updateMatrixWorld(true);
+
         const box = new THREE.Box3().setFromObject(this.model);
         const center = box.getCenter(new THREE.Vector3());
         this.model.position.sub(center);
+        this.model.updateMatrixWorld(true);
+
+        const recenteredBox = new THREE.Box3().setFromObject(this.model);
+        this.modelCenter.copy(recenteredBox.getCenter(new THREE.Vector3()));
+        this.camera.position.set(5, 5, 5);
+        this.camera.lookAt(this.modelCenter);
 
         this.navMeshes = [];
 
@@ -425,7 +434,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     mesh.userData['fixedScale'] = true;
 
     const parent = mesh.parent as THREE.Object3D;
-    const targetWorld = new THREE.Vector3(0, 0, 2.5);
+    const targetWorld = this.modelCenter.clone().add(new THREE.Vector3(0, 0, 2.5));
     const targetPosition = parent.worldToLocal(targetWorld.clone());
     const baseScale = mesh.userData['baseScale'] as THREE.Vector3;
     const material = mesh.material as THREE.MeshBasicMaterial;
