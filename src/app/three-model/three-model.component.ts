@@ -213,11 +213,12 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     this.camera.top = frustumSize / 2;
     this.camera.bottom = -frustumSize / 2;
     this.camera.updateProjectionMatrix();
+    this.camera.lookAt(this.modelCenter);
   }
 
   private loadModel(): void {
     const loader = new OBJLoader();
-    const modelPath = `${this.document.location.origin}/assets/model.obj`;
+    const modelPath = new URL('assets/model.obj', this.document.baseURI).toString();
 
     loader.load(
       modelPath,
@@ -226,17 +227,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         this.model.rotation.z = Math.PI / 2;
         this.model.scale.set(0.25, 0.25, 0.25);
 
-        this.model.updateMatrixWorld(true);
-
-        const box = new THREE.Box3().setFromObject(this.model);
-        const center = box.getCenter(new THREE.Vector3());
-        this.model.position.sub(center);
-        this.model.updateMatrixWorld(true);
-
-        const recenteredBox = new THREE.Box3().setFromObject(this.model);
-        this.modelCenter.copy(recenteredBox.getCenter(new THREE.Vector3()));
-        this.camera.position.set(5, 5, 5);
-        this.camera.lookAt(this.modelCenter);
+        this.recenterModel();
 
         this.navMeshes = [];
 
@@ -270,6 +261,31 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         console.error('An error occurred loading the model:', error);
       }
     );
+  }
+
+  private recenterModel(): void {
+    if (!this.model) {
+      return;
+    }
+
+    this.model.updateMatrixWorld(true);
+
+    const box = new THREE.Box3().setFromObject(this.model);
+    const center = box.getCenter(new THREE.Vector3());
+
+    this.model.position.sub(center);
+    this.model.updateMatrixWorld(true);
+
+    const recenteredBox = new THREE.Box3().setFromObject(this.model);
+    const boundingSphere = recenteredBox.getBoundingSphere(new THREE.Sphere());
+
+    this.modelCenter.copy(boundingSphere.center);
+
+    const cameraOffset = new THREE.Vector3(5, 5, 5);
+    this.camera.position.copy(this.modelCenter).add(cameraOffset);
+    this.camera.lookAt(this.modelCenter);
+    this.camera.updateProjectionMatrix();
+    this.camera.updateMatrixWorld();
   }
 
   private createEdgeMaterial(): THREE.ShaderMaterial {
@@ -366,7 +382,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const moveHandler = (event: PointerEvent) => this.handlePointerMove(event);
     const leaveHandler = () => this.handlePointerLeave();
-    const clickHandler = () => this.handlePointerClick();
+    const clickHandler = (event: MouseEvent | PointerEvent) => this.handlePointerClick(event);
 
     this.canvasEl.addEventListener('pointermove', moveHandler);
     this.canvasEl.addEventListener('pointerleave', leaveHandler);
@@ -387,13 +403,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       this.hoveredMesh = null;
     }
 
-    const rect = this.canvasEl.getBoundingClientRect();
-    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-    this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersections = this.raycaster.intersectObjects(this.navMeshes, false);
-    const mesh = intersections.length > 0 ? (intersections[0].object as THREE.Mesh) : null;
+    const mesh = this.getMeshFromPointer(event.clientX, event.clientY);
 
     if (mesh !== this.hoveredMesh) {
       this.hoveredMesh = mesh;
@@ -412,8 +422,24 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private handlePointerClick(): void {
-    if (!this.hoveredMesh || !this.isExploded || this.selectionInProgress) {
+  private handlePointerClick(event: MouseEvent | PointerEvent): void {
+    if (this.selectionInProgress) {
+      return;
+    }
+
+    const mesh = this.getMeshFromPointer(event.clientX, event.clientY);
+
+    if (!this.isExploded) {
+      this.setExploded(true);
+      this.hoveredMesh = mesh;
+      this.updateHoverAppearance();
+      return;
+    }
+
+    this.hoveredMesh = mesh;
+    this.updateHoverAppearance();
+
+    if (!this.hoveredMesh) {
       return;
     }
 
@@ -507,6 +533,24 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.labelElement.textContent = config.label;
     this.labelElement.style.opacity = '1';
+  }
+
+  private getMeshFromPointer(clientX: number, clientY: number): THREE.Mesh | null {
+    if (!this.canvasEl) {
+      return null;
+    }
+
+    const rect = this.canvasEl.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+      return null;
+    }
+
+    this.mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const intersections = this.raycaster.intersectObjects(this.navMeshes, false);
+    return intersections.length > 0 ? (intersections[0].object as THREE.Mesh) : null;
   }
 
   private updateLabelPosition(): void {
