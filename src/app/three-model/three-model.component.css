@@ -1,3 +1,9 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .three-container {
   position: relative;
   width: 100%;
@@ -19,26 +25,69 @@
 
 .nav-label {
   position: absolute;
-  top: 0;
-  left: 0;
-  padding: 0.35rem 0.75rem;
-  background: rgba(0, 0, 0, 0.85);
-  color: #fff;
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  border-radius: 9999px;
-  border: 1px solid #000;
-  box-shadow: 0 0 0 2px #fff;
-  transform: translate(-50%, -50%);
-  transition: opacity 0.2s ease;
+  min-width: 12rem;
+  padding: 0.75rem 1rem 0.85rem;
+  background: #ffffff;
+  color: #000000;
+  border: 2px solid #000000;
+  box-shadow: 6px 6px 0 #000000;
+  transform: translate(-50%, -100%);
+  transition: opacity 0.2s ease, transform 0.2s ease;
   pointer-events: none;
-  white-space: nowrap;
+  white-space: normal;
+  text-align: left;
+  z-index: 2;
+}
+
+.nav-label::after,
+.nav-label::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.nav-label::after {
+  bottom: -14px;
+  border-width: 12px 12px 0 12px;
+  border-style: solid;
+  border-color: #000000 transparent transparent transparent;
+}
+
+.nav-label::before {
+  bottom: -11px;
+  border-width: 10px 10px 0 10px;
+  border-style: solid;
+  border-color: #ffffff transparent transparent transparent;
+}
+
+.nav-label__title {
+  display: block;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.nav-label__body {
+  margin: 0.35rem 0 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  line-height: 1.3;
 }
 
 @media (max-width: 768px) {
   .nav-label {
+    min-width: 10rem;
+    padding: 0.6rem 0.75rem 0.7rem;
+    box-shadow: 4px 4px 0 #000000;
+  }
+
+  .nav-label__title {
+    font-size: 0.7rem;
+  }
+
+  .nav-label__body {
     font-size: 0.65rem;
-    letter-spacing: 0.1em;
   }
 }

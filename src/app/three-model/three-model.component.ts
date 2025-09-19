@@ -20,13 +20,14 @@ export type SectionKey = 'about' | 'resume' | 'portfolio' | 'wiki';
 export interface SectionEvent {
   key: SectionKey;
   label: string;
+  description: string;
 }
 
 const NAV_TARGETS: Record<string, SectionEvent> = {
-  'Body1:1': { key: 'about', label: 'About' },
-  'Body1': { key: 'resume', label: 'Resume' },
-  'Body1:2': { key: 'wiki', label: 'Wiki' },
-  'Body1:3': { key: 'portfolio', label: 'Portfolio' }
+  'Body1:1': { key: 'about', label: 'About', description: 'Meet the storyteller and the practice.' },
+  'Body1': { key: 'resume', label: 'Resume', description: 'Review experience, skills, and accolades.' },
+  'Body1:2': { key: 'wiki', label: 'Wiki', description: 'Explore ongoing research, notes, and ideas.' },
+  'Body1:3': { key: 'portfolio', label: 'Portfolio', description: 'Dive into selected projects and case studies.' }
 };
 
 @Component({
@@ -50,6 +51,8 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private container!: HTMLElement;
   private canvasEl!: HTMLCanvasElement;
   private labelElement!: HTMLDivElement;
+  private labelTitleEl!: HTMLSpanElement;
+  private labelBodyEl!: HTMLParagraphElement;
   private hoveredMesh: THREE.Mesh | null = null;
   private activeMesh: THREE.Mesh | null = null;
   private navMeshes: THREE.Mesh[] = [];
@@ -63,7 +66,11 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private modelCenter = new THREE.Vector3();
   private cameraDirection = new THREE.Vector3(1, 1, 1).normalize();
   private sceneRadius = 1;
+  private baseRadius = 1;
+  private verticalFill = 0.6;
   private tempVector = new THREE.Vector3();
+  private scaleVector = new THREE.Vector3();
+  private recenterPending = false;
 
   constructor(
     private el: ElementRef,
@@ -111,11 +118,15 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    this.hoveredMesh = null;
+    this.updateHoverAppearance();
+
     const mesh = this.activeMesh;
     this.activeMesh = null;
 
     if (!mesh) {
       this.setExploded(true);
+      this.recenterPending = true;
       return;
     }
 
@@ -123,9 +134,45 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     mesh.userData['fixedScale'] = true;
     const originalPosition = (mesh.userData['originalPosition'] as THREE.Vector3).clone();
     const baseScale = (mesh.userData['baseScale'] as THREE.Vector3).clone();
+    const baseRotation = mesh.userData['baseRotation'] as THREE.Euler | undefined;
     const material = mesh.material as THREE.MeshBasicMaterial;
     const edgeLines = mesh.userData['edgeLines'] as THREE.LineSegments | undefined;
     const edgeMaterial = mesh.userData['edgeMaterial'] as THREE.ShaderMaterial | undefined;
+
+    const otherMeshes = this.navMeshes.filter((candidate) => candidate !== mesh);
+
+    for (const other of otherMeshes) {
+      other.visible = true;
+      const otherMaterial = other.material as THREE.MeshBasicMaterial;
+      const otherEdgeMaterial = other.userData['edgeMaterial'] as THREE.ShaderMaterial | undefined;
+      const otherEdgeLines = other.userData['edgeLines'] as THREE.LineSegments | undefined;
+      const otherBaseScale = other.userData['baseScale'] as THREE.Vector3 | undefined;
+      other.userData['fixedScale'] = false;
+
+      if (otherBaseScale) {
+        other.scale.copy(otherBaseScale);
+      }
+
+      if (otherEdgeLines) {
+        otherEdgeLines.visible = true;
+      }
+
+      otherMaterial.opacity = 0;
+      if (otherEdgeMaterial) {
+        otherEdgeMaterial.uniforms['lineOpacity'].value = 0;
+      }
+
+      new Tween({ opacity: otherMaterial.opacity }, this.tweenGroup)
+        .to({ opacity: 1 }, 450)
+        .easing(Easing.Cubic.Out)
+        .onUpdate(({ opacity }) => {
+          otherMaterial.opacity = opacity;
+          if (otherEdgeMaterial) {
+            otherEdgeMaterial.uniforms['lineOpacity'].value = opacity;
+          }
+        })
+        .start();
+    }
 
     new Tween(mesh.position, this.tweenGroup)
       .to({ x: originalPosition.x, y: originalPosition.y, z: originalPosition.z }, 800)
@@ -157,11 +204,15 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         if (edgeLines) {
           edgeLines.visible = true;
         }
+        if (baseRotation) {
+          mesh.rotation.copy(baseRotation);
+        }
       })
       .start();
 
     this.selectionInProgress = false;
     this.setExploded(true);
+    this.recenterPending = true;
   }
 
   private initScene(): void {
@@ -169,27 +220,13 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const width = this.container.clientWidth || 1;
     const height = this.container.clientHeight || 1;
-    const aspect = width / height;
-    const safeRadius = Math.max(this.sceneRadius, 1);
 
-    this.camera = new THREE.OrthographicCamera(
-      (-safeRadius * aspect),
-      safeRadius * aspect,
-      safeRadius,
-      -safeRadius,
-      0.1,
-      1000
-    );
-
-    this.tempVector
-      .copy(this.cameraDirection)
-      .multiplyScalar(safeRadius * 3);
-    this.camera.position.copy(this.tempVector);
-    this.camera.lookAt(0, 0, 0);
+    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setClearColor(0xffffff, 1);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setSize(width, height, false);
     this.container.appendChild(this.renderer.domElement);
 
     const ambientLight = new THREE.AmbientLight(0x333333, 0.7);
@@ -199,7 +236,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.resizeListener = () => this.onWindowResize();
     window.addEventListener('resize', this.resizeListener);
-    this.onWindowResize();
+    this.updateCameraFrustum(width, height);
   }
 
   private onWindowResize(): void {
@@ -228,10 +265,14 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    const radius = Math.max(this.sceneRadius, 1);
     const aspect = viewWidth / viewHeight;
-    const padding = 1.35;
-    const halfSize = radius * padding;
+    const radiusMultiplier = this.computeRadiusMultiplier(viewWidth, viewHeight);
+    const radius = Math.max(this.baseRadius * radiusMultiplier, 1);
+    this.sceneRadius = radius;
+
+    const verticalFill = this.computeVerticalFill(viewWidth, viewHeight);
+    this.verticalFill = verticalFill;
+    const halfSize = radius / verticalFill;
 
     this.camera.left = -halfSize * aspect;
     this.camera.right = halfSize * aspect;
@@ -239,25 +280,65 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     this.camera.bottom = -halfSize;
     this.camera.updateProjectionMatrix();
 
-    const distance = radius * 2.6;
+    const distance = radius * 3;
     this.tempVector.copy(this.cameraDirection).multiplyScalar(distance);
     this.camera.position.copy(this.tempVector);
     this.camera.lookAt(0, 0, 0);
   }
 
-  private recenterAndFrameModel(force = false): void {
-    if (!this.model || !this.camera) {
-      return;
+  private computeRadiusMultiplier(viewWidth: number, viewHeight: number): number {
+    const shortEdge = Math.min(viewWidth, viewHeight);
+    const aspect = viewWidth / viewHeight;
+
+    let baseMultiplier = 2.45;
+    if (shortEdge <= 640) {
+      baseMultiplier = 2.1;
+    } else if (shortEdge <= 960) {
+      baseMultiplier = 2.3;
     }
 
-    if (this.selectionInProgress && !force) {
-      return;
+    const aspectBoost = Math.max(0, aspect - 1) * 0.55;
+    return baseMultiplier + aspectBoost;
+  }
+
+  private computeVerticalFill(viewWidth: number, viewHeight: number): number {
+    const shortEdge = Math.min(viewWidth, viewHeight);
+    const aspect = viewWidth / viewHeight;
+
+    let fill = 0.46;
+    if (shortEdge <= 640) {
+      fill = 0.52;
+    } else if (shortEdge <= 960) {
+      fill = 0.48;
+    }
+
+    if (aspect > 1.35) {
+      fill -= 0.04;
+    }
+    if (aspect > 1.75) {
+      fill -= 0.03;
+    }
+
+    return THREE.MathUtils.clamp(fill, 0.32, 0.56);
+  }
+
+  private recenterAndFrameModel(force = false): boolean {
+    if (!this.model || !this.camera) {
+      return false;
+    }
+
+    if ((this.selectionInProgress || this.hoveredMesh || this.activeMesh) && !force) {
+      return false;
+    }
+
+    if (!force && this.tweenGroup.getAll().length > 0) {
+      return false;
     }
 
     this.model.updateMatrixWorld(true);
     this.boundingBox.setFromObject(this.model);
     if (this.boundingBox.isEmpty()) {
-      return;
+      return false;
     }
 
     this.boundingBox.getCenter(this.modelCenter);
@@ -266,7 +347,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       !Number.isFinite(this.modelCenter.y) ||
       !Number.isFinite(this.modelCenter.z)
     ) {
-      return;
+      return false;
     }
 
     if (this.modelCenter.lengthSq() > 1e-6) {
@@ -277,17 +358,14 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     this.boundingBox.setFromObject(this.model);
     this.boundingBox.getBoundingSphere(this.boundingSphere);
     if (!Number.isFinite(this.boundingSphere.radius) || this.boundingSphere.radius <= 0) {
-      return;
+      return false;
     }
 
     const normalizedRadius = Math.max(this.boundingSphere.radius, 1);
-    if (force) {
-      this.sceneRadius = normalizedRadius;
-    } else {
-      this.sceneRadius = Math.max(this.sceneRadius, normalizedRadius);
-    }
+    this.baseRadius = normalizedRadius;
 
     this.updateCameraFrustum();
+    return true;
   }
 
   private loadModel(): void {
@@ -308,6 +386,27 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
             const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
             child.material = material;
 
+            const isNavTarget = Boolean(NAV_TARGETS[child.name]);
+
+            if (!child.geometry.boundingBox) {
+              child.geometry.computeBoundingBox();
+            }
+
+            if (isNavTarget && child.geometry.boundingBox) {
+              const center = child.geometry.boundingBox.getCenter(new THREE.Vector3());
+              if (center.lengthSq() > 1e-8) {
+                child.geometry.translate(-center.x, -center.y, -center.z);
+
+                const offset = center.clone();
+                offset.applyQuaternion(child.quaternion);
+                offset.multiply(child.scale);
+                child.position.add(offset);
+
+                child.geometry.computeBoundingBox();
+                child.geometry.computeBoundingSphere();
+              }
+            }
+
             const edgesGeometry = new THREE.EdgesGeometry(child.geometry);
             const edgeMaterial = this.createEdgeMaterial();
             const edgeLines = new THREE.LineSegments(edgesGeometry, edgeMaterial);
@@ -317,9 +416,10 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
             child.userData['edgeMaterial'] = edgeMaterial;
             child.userData['originalPosition'] = child.position.clone();
             child.userData['baseScale'] = child.scale.clone();
+            child.userData['baseRotation'] = child.rotation.clone();
             child.userData['fixedScale'] = false;
 
-            if (NAV_TARGETS[child.name]) {
+            if (isNavTarget) {
               this.navMeshes.push(child);
             }
           }
@@ -329,6 +429,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         this.recenterAndFrameModel(true);
         this.prepareExplodeAnimation();
         this.setExploded(true);
+        this.recenterPending = true;
       },
       undefined,
       (error) => {
@@ -422,6 +523,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     this.isExploded = desired;
+    this.recenterPending = true;
   }
 
   private attachPointerEvents(): void {
@@ -494,11 +596,44 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     const targetWorld = new THREE.Vector3(0, 0, 2.5);
     const targetPosition = parent.worldToLocal(targetWorld.clone());
     const baseScale = mesh.userData['baseScale'] as THREE.Vector3;
+    const baseRotation = mesh.userData['baseRotation'] as THREE.Euler | undefined;
     const material = mesh.material as THREE.MeshBasicMaterial;
     const edgeMaterial = mesh.userData['edgeMaterial'] as THREE.ShaderMaterial | undefined;
     const edgeLines = mesh.userData['edgeLines'] as THREE.LineSegments | undefined;
 
-    this.sectionFocus.emit(config);
+    const otherMeshes = this.navMeshes.filter((candidate) => candidate !== mesh);
+
+    for (const other of otherMeshes) {
+      const otherMaterial = other.material as THREE.MeshBasicMaterial;
+      const otherEdgeMaterial = other.userData['edgeMaterial'] as THREE.ShaderMaterial | undefined;
+      const otherEdgeLines = other.userData['edgeLines'] as THREE.LineSegments | undefined;
+      const otherBaseScale = other.userData['baseScale'] as THREE.Vector3 | undefined;
+      other.userData['fixedScale'] = true;
+
+      if (otherBaseScale) {
+        other.scale.copy(otherBaseScale);
+      }
+
+      new Tween({ opacity: otherMaterial.opacity }, this.tweenGroup)
+        .to({ opacity: 0 }, 420)
+        .easing(Easing.Cubic.InOut)
+        .onUpdate(({ opacity }) => {
+          otherMaterial.opacity = opacity;
+          if (otherEdgeMaterial) {
+            otherEdgeMaterial.uniforms['lineOpacity'].value = opacity;
+          }
+        })
+        .onComplete(() => {
+          other.visible = false;
+          other.userData['fixedScale'] = false;
+          if (otherEdgeLines) {
+            otherEdgeLines.visible = false;
+          }
+        })
+        .start();
+    }
+
+    this.ngZone.run(() => this.sectionFocus.emit(config));
 
     new Tween(mesh.position, this.tweenGroup)
       .to({ x: targetPosition.x, y: targetPosition.y, z: targetPosition.z }, 850)
@@ -514,13 +649,25 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       })
       .start();
 
+    if (baseRotation) {
+      mesh.rotation.copy(baseRotation);
+      const rotationData = { angle: 0 };
+      new Tween(rotationData, this.tweenGroup)
+        .to({ angle: Math.PI * 1.5 }, 900)
+        .easing(Easing.Cubic.Out)
+        .onUpdate(({ angle }) => {
+          mesh.rotation.y = baseRotation.y + angle;
+        })
+        .start();
+    }
+
     if (edgeLines) {
       edgeLines.visible = false;
     }
 
     new Tween({ opacity: material.opacity }, this.tweenGroup)
       .to({ opacity: 0 }, 650)
-      .delay(550)
+      .delay(520)
       .easing(Easing.Cubic.In)
       .onUpdate(({ opacity }) => {
         material.opacity = opacity;
@@ -531,7 +678,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       .onComplete(() => {
         mesh.visible = false;
         this.selectionInProgress = false;
-        this.sectionReveal.emit(config);
+        this.ngZone.run(() => this.sectionReveal.emit(config));
       })
       .start();
   }
@@ -547,7 +694,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       this.canvasEl.style.cursor = 'default';
     }
 
-    if (!this.labelElement) {
+    if (!this.labelElement || !this.labelTitleEl || !this.labelBodyEl) {
       return;
     }
 
@@ -562,7 +709,8 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    this.labelElement.textContent = config.label;
+    this.labelTitleEl.textContent = config.label;
+    this.labelBodyEl.textContent = config.description;
     this.labelElement.style.opacity = '1';
   }
 
@@ -578,14 +726,31 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     const rect = this.canvasEl.getBoundingClientRect();
     const x = ((vector.x + 1) / 2) * rect.width;
     const y = ((-vector.y + 1) / 2) * rect.height;
+    const offset = 36;
+    const margin = 32;
 
-    this.labelElement.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+    const clampedX = Math.min(Math.max(x, margin), rect.width - margin);
+    const clampedY = Math.min(Math.max(y - offset, margin), rect.height - margin);
+
+    this.labelElement.style.left = `${clampedX}px`;
+    this.labelElement.style.top = `${clampedY}px`;
+    this.labelElement.style.transform = 'translate(-50%, -100%)';
   }
 
   private createLabel(): void {
     this.labelElement = this.document.createElement('div');
     this.labelElement.className = 'nav-label';
     this.labelElement.style.opacity = '0';
+    this.labelElement.setAttribute('role', 'status');
+    this.labelElement.setAttribute('aria-live', 'polite');
+
+    this.labelTitleEl = this.document.createElement('span');
+    this.labelTitleEl.className = 'nav-label__title';
+    this.labelBodyEl = this.document.createElement('p');
+    this.labelBodyEl.className = 'nav-label__body';
+
+    this.labelElement.appendChild(this.labelTitleEl);
+    this.labelElement.appendChild(this.labelBodyEl);
     this.container.appendChild(this.labelElement);
   }
 
@@ -597,7 +762,12 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.tweenGroup.update(performance.now());
-    this.recenterAndFrameModel();
+    if (this.recenterPending && !this.selectionInProgress && !this.hoveredMesh && !this.activeMesh) {
+      const recentered = this.recenterAndFrameModel();
+      if (recentered) {
+        this.recenterPending = false;
+      }
+    }
     this.updatePulse();
     this.updateLabelPosition();
     this.renderer.render(this.scene, this.camera);
@@ -615,9 +785,15 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         continue;
       }
 
-      const amplitude = mesh === this.hoveredMesh ? 0.06 : 0.03;
-      const pulse = 1 + amplitude * Math.sin(elapsed * 2 + mesh.id * 0.5);
-      mesh.scale.set(baseScale.x * pulse, baseScale.y * pulse, baseScale.z * pulse);
+      if (mesh === this.hoveredMesh && this.isExploded && !this.selectionInProgress) {
+        const amplitude = 0.08;
+        const pulse = 1 + amplitude * (0.5 * (Math.sin(elapsed * 3.2) + 1));
+        this.scaleVector.set(baseScale.x * pulse, baseScale.y * pulse, baseScale.z * pulse);
+        mesh.scale.lerp(this.scaleVector, 0.2);
+      } else {
+        this.scaleVector.set(baseScale.x, baseScale.y, baseScale.z);
+        mesh.scale.lerp(this.scaleVector, 0.25);
+      }
     }
   }
 }
