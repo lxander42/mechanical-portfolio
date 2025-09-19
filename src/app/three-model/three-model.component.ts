@@ -64,6 +64,8 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private cameraDirection = new THREE.Vector3(1, 1, 1).normalize();
   private sceneRadius = 1;
   private tempVector = new THREE.Vector3();
+  private needsRecenter = false;
+  private forceNextRecenter = false;
 
   constructor(
     private el: ElementRef,
@@ -115,17 +117,54 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     this.activeMesh = null;
 
     if (!mesh) {
+      this.requestRecenter(true);
       this.setExploded(true);
       return;
+    }
+
+    for (const navMesh of this.navMeshes) {
+      const navMaterial = navMesh.material as THREE.MeshBasicMaterial | undefined;
+      const navEdgeMaterial = navMesh.userData['edgeMaterial'] as THREE.ShaderMaterial | undefined;
+      const navEdgeLines = navMesh.userData['edgeLines'] as THREE.LineSegments | undefined;
+      const baseScale = navMesh.userData['baseScale'] as THREE.Vector3 | undefined;
+      const baseRotation = navMesh.userData['baseRotation'] as { x: number; y: number; z: number } | undefined;
+
+      navMesh.visible = true;
+      navMesh.userData['fixedScale'] = navMesh === mesh;
+
+      if (baseScale) {
+        navMesh.scale.set(baseScale.x, baseScale.y, baseScale.z);
+      }
+
+      if (baseRotation) {
+        navMesh.rotation.set(baseRotation.x, baseRotation.y, baseRotation.z);
+      }
+
+      if (navMaterial) {
+        navMaterial.opacity = 1;
+      }
+
+      if (navEdgeMaterial) {
+        navEdgeMaterial.uniforms['lineOpacity'].value = 1;
+      }
+
+      if (navEdgeLines) {
+        navEdgeLines.visible = true;
+      }
     }
 
     mesh.visible = true;
     mesh.userData['fixedScale'] = true;
     const originalPosition = (mesh.userData['originalPosition'] as THREE.Vector3).clone();
     const baseScale = (mesh.userData['baseScale'] as THREE.Vector3).clone();
+    const baseRotation = mesh.userData['baseRotation'] as { x: number; y: number; z: number } | undefined;
     const material = mesh.material as THREE.MeshBasicMaterial;
     const edgeLines = mesh.userData['edgeLines'] as THREE.LineSegments | undefined;
     const edgeMaterial = mesh.userData['edgeMaterial'] as THREE.ShaderMaterial | undefined;
+
+    if (baseRotation) {
+      mesh.rotation.set(baseRotation.x, baseRotation.y, baseRotation.z);
+    }
 
     new Tween(mesh.position, this.tweenGroup)
       .to({ x: originalPosition.x, y: originalPosition.y, z: originalPosition.z }, 800)
@@ -161,6 +200,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       .start();
 
     this.selectionInProgress = false;
+    this.requestRecenter(true);
     this.setExploded(true);
   }
 
@@ -215,6 +255,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.renderer.setSize(width, height, false);
     this.updateCameraFrustum(width, height);
+    this.requestRecenter();
   }
 
   private updateCameraFrustum(width?: number, height?: number): void {
@@ -317,6 +358,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
             child.userData['edgeMaterial'] = edgeMaterial;
             child.userData['originalPosition'] = child.position.clone();
             child.userData['baseScale'] = child.scale.clone();
+            child.userData['baseRotation'] = { x: child.rotation.x, y: child.rotation.y, z: child.rotation.z };
             child.userData['fixedScale'] = false;
 
             if (NAV_TARGETS[child.name]) {
@@ -326,7 +368,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         });
 
         this.scene.add(this.model);
-        this.recenterAndFrameModel(true);
+        this.requestRecenter(true);
         this.prepareExplodeAnimation();
         this.setExploded(true);
       },
@@ -422,6 +464,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     this.isExploded = desired;
+    this.requestRecenter(true);
   }
 
   private attachPointerEvents(): void {
@@ -490,6 +533,43 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
     mesh.userData['fixedScale'] = true;
 
+    for (const other of this.navMeshes) {
+      if (other === mesh) {
+        continue;
+      }
+
+      const baseScale = other.userData['baseScale'] as THREE.Vector3 | undefined;
+      if (baseScale) {
+        other.scale.copy(baseScale);
+      }
+
+      other.userData['fixedScale'] = true;
+
+      const otherMaterial = other.material as THREE.MeshBasicMaterial | undefined;
+      const otherEdgeMaterial = other.userData['edgeMaterial'] as THREE.ShaderMaterial | undefined;
+      const otherEdgeLines = other.userData['edgeLines'] as THREE.LineSegments | undefined;
+
+      if (otherMaterial) {
+        new Tween({ opacity: otherMaterial.opacity }, this.tweenGroup)
+          .to({ opacity: 0 }, 420)
+          .easing(Easing.Cubic.InOut)
+          .onUpdate(({ opacity }) => {
+            otherMaterial.opacity = opacity;
+            if (otherEdgeMaterial) {
+              otherEdgeMaterial.uniforms['lineOpacity'].value = opacity;
+            }
+          })
+          .onComplete(() => {
+            other.visible = false;
+            if (otherEdgeLines) {
+              otherEdgeLines.visible = false;
+            }
+            other.userData['fixedScale'] = false;
+          })
+          .start();
+      }
+    }
+
     const parent = mesh.parent as THREE.Object3D;
     const targetWorld = new THREE.Vector3(0, 0, 2.5);
     const targetPosition = parent.worldToLocal(targetWorld.clone());
@@ -497,6 +577,11 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     const material = mesh.material as THREE.MeshBasicMaterial;
     const edgeMaterial = mesh.userData['edgeMaterial'] as THREE.ShaderMaterial | undefined;
     const edgeLines = mesh.userData['edgeLines'] as THREE.LineSegments | undefined;
+    const baseRotation = mesh.userData['baseRotation'] as { x: number; y: number; z: number } | undefined;
+
+    if (baseRotation) {
+      mesh.rotation.set(baseRotation.x, baseRotation.y, baseRotation.z);
+    }
 
     this.sectionFocus.emit(config);
 
@@ -505,7 +590,20 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       .easing(Easing.Cubic.Out)
       .start();
 
-    const scaleData = { value: 1 };
+    const spinData = { angle: 0 };
+    new Tween(spinData, this.tweenGroup)
+      .to({ angle: Math.PI * 2 }, 900)
+      .easing(Easing.Cubic.Out)
+      .onUpdate(({ angle }) => {
+        if (baseRotation) {
+          mesh.rotation.set(baseRotation.x, baseRotation.y + angle, baseRotation.z);
+        } else {
+          mesh.rotation.y = angle;
+        }
+      })
+      .start();
+
+    const scaleData = { value: mesh.scale.x / baseScale.x };
     new Tween(scaleData, this.tweenGroup)
       .to({ value: 1.6 }, 700)
       .easing(Easing.Cubic.Out)
@@ -562,7 +660,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    this.labelElement.textContent = config.label;
+    this.labelElement.textContent = `Navigate to ${config.label}`;
     this.labelElement.style.opacity = '1';
   }
 
@@ -579,7 +677,8 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     const x = ((vector.x + 1) / 2) * rect.width;
     const y = ((-vector.y + 1) / 2) * rect.height;
 
-    this.labelElement.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+    const offsetY = Math.max(y - 24, 0);
+    this.labelElement.style.transform = `translate(-50%, -100%) translate(${x}px, ${offsetY}px)`;
   }
 
   private createLabel(): void {
@@ -597,13 +696,23 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.tweenGroup.update(performance.now());
-    this.recenterAndFrameModel();
+    if (this.needsRecenter) {
+      this.recenterAndFrameModel(this.forceNextRecenter);
+      this.needsRecenter = false;
+      this.forceNextRecenter = false;
+    } else if (!this.selectionInProgress && !this.hoveredMesh) {
+      this.recenterAndFrameModel();
+    }
     this.updatePulse();
     this.updateLabelPosition();
     this.renderer.render(this.scene, this.camera);
   }
 
   private updatePulse(): void {
+    if (this.selectionInProgress) {
+      return;
+    }
+
     const elapsed = this.clock.getElapsedTime();
     for (const mesh of this.navMeshes) {
       if (mesh === this.activeMesh || mesh.userData['fixedScale']) {
@@ -615,9 +724,17 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         continue;
       }
 
-      const amplitude = mesh === this.hoveredMesh ? 0.06 : 0.03;
-      const pulse = 1 + amplitude * Math.sin(elapsed * 2 + mesh.id * 0.5);
-      mesh.scale.set(baseScale.x * pulse, baseScale.y * pulse, baseScale.z * pulse);
+      if (mesh === this.hoveredMesh) {
+        const pulse = 1 + 0.08 * Math.sin(elapsed * 3.2);
+        mesh.scale.set(baseScale.x * pulse, baseScale.y * pulse, baseScale.z * pulse);
+      } else {
+        mesh.scale.set(baseScale.x, baseScale.y, baseScale.z);
+      }
     }
+  }
+
+  private requestRecenter(force = false): void {
+    this.needsRecenter = true;
+    this.forceNextRecenter = this.forceNextRecenter || force;
   }
 }

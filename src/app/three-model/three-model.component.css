@@ -21,24 +21,41 @@
   position: absolute;
   top: 0;
   left: 0;
-  padding: 0.35rem 0.75rem;
-  background: rgba(0, 0, 0, 0.85);
-  color: #fff;
+  padding: 0.45rem 0.85rem;
+  background: #fff;
+  color: #000;
   font-size: 0.75rem;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  border-radius: 9999px;
-  border: 1px solid #000;
-  box-shadow: 0 0 0 2px #fff;
-  transform: translate(-50%, -50%);
-  transition: opacity 0.2s ease;
+  border-radius: 0.5rem;
+  border: 2px solid #000;
+  box-shadow: 4px 4px 0 0 #000;
+  transform: translate(-50%, -100%);
+  transition: opacity 0.2s ease, transform 0.2s ease;
   pointer-events: none;
   white-space: nowrap;
+  z-index: 10;
+}
+
+.nav-label::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  width: 14px;
+  height: 14px;
+  transform: translateX(-50%) rotate(45deg);
+  background: #fff;
+  border: 2px solid #000;
+  border-left-color: transparent;
+  border-top-color: transparent;
+  box-shadow: 3px 3px 0 0 #000;
 }
 
 @media (max-width: 768px) {
   .nav-label {
     font-size: 0.65rem;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
+    padding: 0.4rem 0.7rem;
   }
 }
