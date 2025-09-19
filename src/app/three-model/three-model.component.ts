@@ -62,6 +62,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private boundingSphere = new THREE.Sphere();
   private modelCenter = new THREE.Vector3();
   private cameraDirection = new THREE.Vector3(1, 1, 1).normalize();
+  private baseRadius = 1;
   private sceneRadius = 1;
   private tempVector = new THREE.Vector3();
 
@@ -170,7 +171,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     const width = this.container.clientWidth || 1;
     const height = this.container.clientHeight || 1;
     const aspect = width / height;
-    const safeRadius = Math.max(this.sceneRadius, 1);
+    const safeRadius = Math.max(this.baseRadius, this.sceneRadius, 1);
 
     this.camera = new THREE.OrthographicCamera(
       (-safeRadius * aspect),
@@ -228,7 +229,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    const radius = Math.max(this.sceneRadius, 1);
+    const radius = Math.max(this.baseRadius, this.sceneRadius, 1);
     const aspect = viewWidth / viewHeight;
     const padding = 1.35;
     const halfSize = radius * padding;
@@ -250,8 +251,18 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    if (this.selectionInProgress && !force) {
-      return;
+    if (!force) {
+      if (this.selectionInProgress) {
+        return;
+      }
+
+      const activeTweens = this.tweenGroup
+        .getAll()
+        .some((tween) => tween.isPlaying());
+
+      if (activeTweens) {
+        return;
+      }
     }
 
     this.model.updateMatrixWorld(true);
@@ -281,10 +292,15 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     const normalizedRadius = Math.max(this.boundingSphere.radius, 1);
+
     if (force) {
+      this.baseRadius = normalizedRadius;
       this.sceneRadius = normalizedRadius;
     } else {
-      this.sceneRadius = Math.max(this.sceneRadius, normalizedRadius);
+      if (this.isExploded) {
+        this.baseRadius = Math.max(this.baseRadius, normalizedRadius);
+      }
+      this.sceneRadius = Math.max(this.sceneRadius, normalizedRadius, this.baseRadius);
     }
 
     this.updateCameraFrustum();
@@ -410,18 +426,50 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    const tweensToStart: Tween<THREE.Vector3>[] = [];
+
     this.model.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         const tweenKey = desired ? 'tweenExplode' : 'tweenImplode';
         const tween: Tween<THREE.Vector3> | undefined = child.userData[tweenKey];
         if (tween) {
           tween.stop();
-          tween.start();
+          tweensToStart.push(tween);
         }
       }
     });
 
     this.isExploded = desired;
+
+    if (desired) {
+      this.waitForTweensToFinish(tweensToStart, () => this.recenterAndFrameModel(true));
+    }
+
+    tweensToStart.forEach((tween) => tween.start());
+  }
+
+  private waitForTweensToFinish(
+    tweens: Tween<THREE.Vector3>[],
+    callback: () => void
+  ): void {
+    if (tweens.length === 0) {
+      callback();
+      return;
+    }
+
+    let remaining = tweens.length;
+    const handleComplete = () => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        callback();
+      }
+    };
+
+    tweens.forEach((tween) => {
+      tween.onComplete(() => {
+        handleComplete();
+      });
+    });
   }
 
   private attachPointerEvents(): void {
