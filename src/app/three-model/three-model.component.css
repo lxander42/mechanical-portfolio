@@ -10,10 +10,12 @@
 
 .three-container canvas {
   position: absolute;
-  inset: 0;
-  width: 100% !important;
-  height: 100% !important;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: block;
+  max-width: 100%;
+  max-height: 100%;
   cursor: default;
 }
 
@@ -21,24 +23,48 @@
   position: absolute;
   top: 0;
   left: 0;
-  padding: 0.35rem 0.75rem;
-  background: rgba(0, 0, 0, 0.85);
-  color: #fff;
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
+  padding: 0.4rem 0.85rem;
+  background: #ffffff;
+  color: #111827;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  border-radius: 9999px;
-  border: 1px solid #000;
-  box-shadow: 0 0 0 2px #fff;
+  border-radius: 0.5rem;
+  border: 2px solid #000000;
+  box-shadow: 4px 4px 0 0 #000000;
   transform: translate(-50%, -50%);
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
   pointer-events: none;
   white-space: nowrap;
+  font-weight: 600;
+}
+
+.nav-label::before,
+.nav-label::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.nav-label::before {
+  bottom: -8px;
+  border-width: 8px 8px 0 8px;
+  border-style: solid;
+  border-color: #000000 transparent transparent transparent;
+}
+
+.nav-label::after {
+  bottom: -6px;
+  border-width: 6px 6px 0 6px;
+  border-style: solid;
+  border-color: #ffffff transparent transparent transparent;
 }
 
 @media (max-width: 768px) {
   .nav-label {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     letter-spacing: 0.1em;
+    padding: 0.35rem 0.7rem;
   }
 }
