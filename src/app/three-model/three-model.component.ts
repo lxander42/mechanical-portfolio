@@ -62,9 +62,16 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private boundingSphere = new THREE.Sphere();
   private cameraDirection = new THREE.Vector3(1, 1, 1).normalize();
   private cameraTarget = new THREE.Vector3();
+  private cameraBaseTarget = new THREE.Vector3();
+  private cameraForward = new THREE.Vector3();
+  private cameraRight = new THREE.Vector3();
+  private cameraUpVector = new THREE.Vector3();
   private baseRadius = 1;
   private sceneRadius = 1;
   private tempVector = new THREE.Vector3();
+  private tempVector2 = new THREE.Vector3();
+  private cameraBounds = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
+  private readonly cameraPadding = 1.35;
 
   constructor(
     private el: ElementRef,
@@ -232,22 +239,80 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const radius = Math.max(this.sceneRadius, this.baseRadius, 1);
     const aspect = viewWidth / viewHeight;
-    const padding = 1.35;
-    const halfSize = radius * padding;
 
-    this.camera.left = -halfSize * aspect;
-    this.camera.right = halfSize * aspect;
-    this.camera.top = halfSize;
-    this.camera.bottom = -halfSize;
+    let { minX, maxX, minY, maxY } = this.cameraBounds;
+
+    if (
+      !Number.isFinite(minX) ||
+      !Number.isFinite(maxX) ||
+      !Number.isFinite(minY) ||
+      !Number.isFinite(maxY)
+    ) {
+      const halfSize = radius * this.cameraPadding;
+      minX = -halfSize * aspect;
+      maxX = halfSize * aspect;
+      minY = -halfSize;
+      maxY = halfSize;
+    }
+
+    let centerX = (minX + maxX) / 2;
+    let centerY = (minY + maxY) / 2;
+    let halfWidth = (maxX - minX) / 2;
+    let halfHeight = (maxY - minY) / 2;
+
+    if (!Number.isFinite(halfWidth) || halfWidth <= 0 || !Number.isFinite(halfHeight) || halfHeight <= 0) {
+      const halfSize = radius * this.cameraPadding;
+      centerX = 0;
+      centerY = 0;
+      halfWidth = halfSize * aspect;
+      halfHeight = halfSize;
+    }
+
+    const boundsAspect = halfWidth / halfHeight;
+    if (!Number.isFinite(boundsAspect)) {
+      const halfSize = radius * this.cameraPadding;
+      halfWidth = halfSize * aspect;
+      halfHeight = halfSize;
+    } else if (boundsAspect < aspect) {
+      halfWidth = halfHeight * aspect;
+    } else if (boundsAspect > aspect) {
+      halfHeight = halfWidth / aspect;
+    }
+
+    const left = centerX - halfWidth;
+    const right = centerX + halfWidth;
+    const bottom = centerY - halfHeight;
+    const top = centerY + halfHeight;
+
+    this.camera.left = left;
+    this.camera.right = right;
+    this.camera.bottom = bottom;
+    this.camera.top = top;
     this.camera.updateProjectionMatrix();
 
+    this.updateCameraBasis();
+
+    const planeOffset = this.tempVector2
+      .copy(this.cameraRight)
+      .multiplyScalar(centerX)
+      .addScaledVector(this.cameraUpVector, centerY);
+
+    this.cameraTarget.copy(this.cameraBaseTarget).add(planeOffset);
+
     const distance = radius * 2.6;
-    this.tempVector
-      .copy(this.cameraDirection)
-      .multiplyScalar(distance)
-      .add(this.cameraTarget);
+    this.tempVector.copy(this.cameraForward).multiplyScalar(distance).add(this.cameraTarget);
     this.camera.position.copy(this.tempVector);
     this.camera.lookAt(this.cameraTarget);
+  }
+
+  private updateCameraBasis(): void {
+    this.cameraForward.copy(this.cameraDirection).normalize();
+    this.cameraRight.copy(this.camera.up).normalize().cross(this.cameraForward);
+    if (this.cameraRight.lengthSq() < 1e-6) {
+      this.cameraRight.set(1, 0, 0);
+    }
+    this.cameraRight.normalize();
+    this.cameraUpVector.copy(this.cameraForward).cross(this.cameraRight).normalize();
   }
 
   private recenterAndFrameModel(force = false): void {
@@ -284,7 +349,55 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    this.cameraTarget.copy(this.boundingSphere.center);
+    this.cameraBaseTarget.copy(this.boundingSphere.center);
+    this.cameraTarget.copy(this.cameraBaseTarget);
+
+    this.updateCameraBasis();
+
+    const min = this.boundingBox.min;
+    const max = this.boundingBox.max;
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (let ix = 0; ix <= 1; ix++) {
+      for (let iy = 0; iy <= 1; iy++) {
+        for (let iz = 0; iz <= 1; iz++) {
+          this.tempVector2.set(ix ? max.x : min.x, iy ? max.y : min.y, iz ? max.z : min.z);
+          this.tempVector.copy(this.tempVector2).sub(this.cameraBaseTarget);
+          const x = this.tempVector.dot(this.cameraRight);
+          const y = this.tempVector.dot(this.cameraUpVector);
+
+          if (Number.isFinite(x) && Number.isFinite(y)) {
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y);
+            maxY = Math.max(maxY, y);
+          }
+        }
+      }
+    }
+
+    if (
+      Number.isFinite(minX) &&
+      Number.isFinite(maxX) &&
+      Number.isFinite(minY) &&
+      Number.isFinite(maxY)
+    ) {
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      const halfWidth = (maxX - minX) / 2;
+      const halfHeight = (maxY - minY) / 2;
+
+      const paddedHalfWidth = Math.max(halfWidth * this.cameraPadding, 1e-3);
+      const paddedHalfHeight = Math.max(halfHeight * this.cameraPadding, 1e-3);
+
+      this.cameraBounds.minX = centerX - paddedHalfWidth;
+      this.cameraBounds.maxX = centerX + paddedHalfWidth;
+      this.cameraBounds.minY = centerY - paddedHalfHeight;
+      this.cameraBounds.maxY = centerY + paddedHalfHeight;
+    }
 
     const normalizedRadius = Math.max(this.boundingSphere.radius, 1);
     if (force) {
