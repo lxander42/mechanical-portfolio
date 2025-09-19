@@ -58,6 +58,12 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private detachFns: Array<() => void> = [];
   private clock = new THREE.Clock();
   private selectionInProgress = false;
+  private boundingBox = new THREE.Box3();
+  private boundingSphere = new THREE.Sphere();
+  private modelCenter = new THREE.Vector3();
+  private cameraDirection = new THREE.Vector3(1, 1, 1).normalize();
+  private sceneRadius = 1;
+  private tempVector = new THREE.Vector3();
 
   constructor(
     private el: ElementRef,
@@ -161,18 +167,24 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private initScene(): void {
     this.scene = new THREE.Scene();
 
-    const aspect = this.el.nativeElement.clientWidth / this.el.nativeElement.clientHeight || 1;
-    const frustumSize = 10;
+    const width = this.container.clientWidth || 1;
+    const height = this.container.clientHeight || 1;
+    const aspect = width / height;
+    const safeRadius = Math.max(this.sceneRadius, 1);
+
     this.camera = new THREE.OrthographicCamera(
-      (frustumSize * aspect) / -2,
-      (frustumSize * aspect) / 2,
-      frustumSize / 2,
-      frustumSize / -2,
+      (-safeRadius * aspect),
+      safeRadius * aspect,
+      safeRadius,
+      -safeRadius,
       0.1,
       1000
     );
 
-    this.camera.position.set(5, 5, 5);
+    this.tempVector
+      .copy(this.cameraDirection)
+      .multiplyScalar(safeRadius * 3);
+    this.camera.position.copy(this.tempVector);
     this.camera.lookAt(0, 0, 0);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -202,14 +214,80 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.renderer.setSize(width, height, false);
+    this.updateCameraFrustum(width, height);
+  }
 
-    const frustumSize = 10;
-    const aspect = width / height;
-    this.camera.left = (-frustumSize * aspect) / 2;
-    this.camera.right = (frustumSize * aspect) / 2;
-    this.camera.top = frustumSize / 2;
-    this.camera.bottom = -frustumSize / 2;
+  private updateCameraFrustum(width?: number, height?: number): void {
+    if (!this.camera || !this.container) {
+      return;
+    }
+
+    const viewWidth = width ?? this.container.clientWidth;
+    const viewHeight = height ?? this.container.clientHeight;
+    if (viewWidth === 0 || viewHeight === 0) {
+      return;
+    }
+
+    const radius = Math.max(this.sceneRadius, 1);
+    const aspect = viewWidth / viewHeight;
+    const padding = 1.35;
+    const halfSize = radius * padding;
+
+    this.camera.left = -halfSize * aspect;
+    this.camera.right = halfSize * aspect;
+    this.camera.top = halfSize;
+    this.camera.bottom = -halfSize;
     this.camera.updateProjectionMatrix();
+
+    const distance = radius * 2.6;
+    this.tempVector.copy(this.cameraDirection).multiplyScalar(distance);
+    this.camera.position.copy(this.tempVector);
+    this.camera.lookAt(0, 0, 0);
+  }
+
+  private recenterAndFrameModel(force = false): void {
+    if (!this.model || !this.camera) {
+      return;
+    }
+
+    if (this.selectionInProgress && !force) {
+      return;
+    }
+
+    this.model.updateMatrixWorld(true);
+    this.boundingBox.setFromObject(this.model);
+    if (this.boundingBox.isEmpty()) {
+      return;
+    }
+
+    this.boundingBox.getCenter(this.modelCenter);
+    if (
+      !Number.isFinite(this.modelCenter.x) ||
+      !Number.isFinite(this.modelCenter.y) ||
+      !Number.isFinite(this.modelCenter.z)
+    ) {
+      return;
+    }
+
+    if (this.modelCenter.lengthSq() > 1e-6) {
+      this.model.position.sub(this.modelCenter);
+      this.model.updateMatrixWorld(true);
+    }
+
+    this.boundingBox.setFromObject(this.model);
+    this.boundingBox.getBoundingSphere(this.boundingSphere);
+    if (!Number.isFinite(this.boundingSphere.radius) || this.boundingSphere.radius <= 0) {
+      return;
+    }
+
+    const normalizedRadius = Math.max(this.boundingSphere.radius, 1);
+    if (force) {
+      this.sceneRadius = normalizedRadius;
+    } else {
+      this.sceneRadius = Math.max(this.sceneRadius, normalizedRadius);
+    }
+
+    this.updateCameraFrustum();
   }
 
   private loadModel(): void {
@@ -222,10 +300,6 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         this.model = obj;
         this.model.rotation.z = Math.PI / 2;
         this.model.scale.set(0.25, 0.25, 0.25);
-
-        const box = new THREE.Box3().setFromObject(this.model);
-        const center = box.getCenter(new THREE.Vector3());
-        this.model.position.sub(center);
 
         this.navMeshes = [];
 
@@ -252,6 +326,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         });
 
         this.scene.add(this.model);
+        this.recenterAndFrameModel(true);
         this.prepareExplodeAnimation();
         this.setExploded(true);
       },
@@ -522,6 +597,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.tweenGroup.update(performance.now());
+    this.recenterAndFrameModel();
     this.updatePulse();
     this.updateLabelPosition();
     this.renderer.render(this.scene, this.camera);

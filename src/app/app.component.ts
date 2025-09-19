@@ -51,7 +51,10 @@ export class AppComponent implements OnDestroy {
   closeContent(): void {
     this.showContent = false;
     this.activeSection = null;
-    this.suppressNavigationReveal = false;
+    this.suppressNavigationReveal = true;
+    void this.router.navigate(['/']).finally(() => {
+      this.suppressNavigationReveal = false;
+    });
     this.threeModel?.resetSelection();
   }
 
