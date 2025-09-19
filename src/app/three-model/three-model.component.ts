@@ -64,6 +64,13 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private cameraTarget = new THREE.Vector3();
   private baseRadius = 1;
   private sceneRadius = 1;
+  private baseHalfWidth = 1;
+  private baseHalfHeight = 1;
+  private cameraHalfWidth = 1;
+  private cameraHalfHeight = 1;
+  private cameraPadding = 1.15;
+  private boundingBoxCorners = Array.from({ length: 8 }, () => new THREE.Vector3());
+  private viewMatrix = new THREE.Matrix4();
   private tempVector = new THREE.Vector3();
 
   constructor(
@@ -230,17 +237,35 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    const radius = Math.max(this.sceneRadius, this.baseRadius, 1);
     const aspect = viewWidth / viewHeight;
-    const padding = 1.35;
-    const halfSize = radius * padding;
 
-    this.camera.left = -halfSize * aspect;
-    this.camera.right = halfSize * aspect;
-    this.camera.top = halfSize;
-    this.camera.bottom = -halfSize;
+    let halfWidth = Math.max(this.cameraHalfWidth, 1);
+    let halfHeight = Math.max(this.cameraHalfHeight, 1);
+
+    if (Number.isFinite(aspect) && aspect > 0) {
+      const targetAspect = halfWidth / halfHeight;
+      if (!Number.isFinite(targetAspect) || targetAspect <= 0) {
+        halfWidth = halfHeight * aspect;
+      } else if (aspect > targetAspect) {
+        halfWidth = halfHeight * aspect;
+      } else if (aspect < targetAspect) {
+        halfHeight = halfWidth / aspect;
+      }
+    }
+
+    this.camera.left = -halfWidth;
+    this.camera.right = halfWidth;
+    this.camera.top = halfHeight;
+    this.camera.bottom = -halfHeight;
     this.camera.updateProjectionMatrix();
 
+    const radius = Math.max(
+      this.sceneRadius,
+      this.baseRadius,
+      this.cameraHalfWidth,
+      this.cameraHalfHeight,
+      1
+    );
     const distance = radius * 2.6;
     this.tempVector
       .copy(this.cameraDirection)
@@ -292,6 +317,59 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       this.sceneRadius = normalizedRadius;
     } else {
       this.sceneRadius = Math.max(this.baseRadius, normalizedRadius);
+    }
+
+    const min = this.boundingBox.min;
+    const max = this.boundingBox.max;
+    const corners = this.boundingBoxCorners;
+    corners[0].set(min.x, min.y, min.z);
+    corners[1].set(max.x, min.y, min.z);
+    corners[2].set(min.x, max.y, min.z);
+    corners[3].set(max.x, max.y, min.z);
+    corners[4].set(min.x, min.y, max.z);
+    corners[5].set(max.x, min.y, max.z);
+    corners[6].set(min.x, max.y, max.z);
+    corners[7].set(max.x, max.y, max.z);
+
+    this.camera.updateMatrixWorld(true);
+    this.viewMatrix.copy(this.camera.matrixWorld).invert();
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    for (const corner of corners) {
+      this.tempVector.copy(corner).applyMatrix4(this.viewMatrix);
+      minX = Math.min(minX, this.tempVector.x);
+      maxX = Math.max(maxX, this.tempVector.x);
+      minY = Math.min(minY, this.tempVector.y);
+      maxY = Math.max(maxY, this.tempVector.y);
+    }
+
+    if (
+      Number.isFinite(minX) &&
+      Number.isFinite(maxX) &&
+      Number.isFinite(minY) &&
+      Number.isFinite(maxY)
+    ) {
+      const measuredHalfWidth = Math.max(Math.abs(minX), Math.abs(maxX));
+      const measuredHalfHeight = Math.max(Math.abs(minY), Math.abs(maxY));
+
+      if (measuredHalfWidth > 0 && measuredHalfHeight > 0) {
+        const paddedHalfWidth = Math.max(measuredHalfWidth, 1) * this.cameraPadding;
+        const paddedHalfHeight = Math.max(measuredHalfHeight, 1) * this.cameraPadding;
+
+        if (force) {
+          this.baseHalfWidth = paddedHalfWidth;
+          this.baseHalfHeight = paddedHalfHeight;
+          this.cameraHalfWidth = paddedHalfWidth;
+          this.cameraHalfHeight = paddedHalfHeight;
+        } else {
+          this.cameraHalfWidth = Math.max(this.baseHalfWidth, paddedHalfWidth);
+          this.cameraHalfHeight = Math.max(this.baseHalfHeight, paddedHalfHeight);
+        }
+      }
     }
 
     this.updateCameraFrustum();
