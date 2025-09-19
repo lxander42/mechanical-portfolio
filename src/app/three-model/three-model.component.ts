@@ -65,6 +65,13 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private baseRadius = 1;
   private sceneRadius = 1;
   private tempVector = new THREE.Vector3();
+  private tempVector2 = new THREE.Vector3();
+  private cameraForward = new THREE.Vector3();
+  private cameraRight = new THREE.Vector3();
+  private cameraUp = new THREE.Vector3();
+  private cameraBoundsInitialized = false;
+  private cameraPlaneBounds = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
+  private boundingBoxCorners: THREE.Vector3[] = Array.from({ length: 8 }, () => new THREE.Vector3());
 
   constructor(
     private el: ElementRef,
@@ -232,22 +239,94 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const radius = Math.max(this.sceneRadius, this.baseRadius, 1);
     const aspect = viewWidth / viewHeight;
-    const padding = 1.35;
-    const halfSize = radius * padding;
 
-    this.camera.left = -halfSize * aspect;
-    this.camera.right = halfSize * aspect;
-    this.camera.top = halfSize;
-    this.camera.bottom = -halfSize;
+    const applySymmetricFrustum = () => {
+      const padding = 1.35;
+      const halfSize = radius * padding;
+
+      this.camera.left = -halfSize * aspect;
+      this.camera.right = halfSize * aspect;
+      this.camera.top = halfSize;
+      this.camera.bottom = -halfSize;
+      this.camera.updateProjectionMatrix();
+
+      const distance = radius * 2.6;
+      this.tempVector
+        .copy(this.cameraDirection)
+        .multiplyScalar(distance)
+        .add(this.cameraTarget);
+      this.camera.position.copy(this.tempVector);
+      this.camera.lookAt(this.cameraTarget);
+    };
+
+    if (!this.cameraBoundsInitialized) {
+      applySymmetricFrustum();
+      return;
+    }
+
+    let leftBound = this.cameraPlaneBounds.minX;
+    let rightBound = this.cameraPlaneBounds.maxX;
+    let bottomBound = this.cameraPlaneBounds.minY;
+    let topBound = this.cameraPlaneBounds.maxY;
+
+    if (
+      !Number.isFinite(leftBound) ||
+      !Number.isFinite(rightBound) ||
+      !Number.isFinite(topBound) ||
+      !Number.isFinite(bottomBound)
+    ) {
+      applySymmetricFrustum();
+      return;
+    }
+
+    const boundsWidth = rightBound - leftBound;
+    const boundsHeight = topBound - bottomBound;
+    if (boundsWidth <= 0 || boundsHeight <= 0) {
+      applySymmetricFrustum();
+      return;
+    }
+
+    const boundsAspect = boundsWidth / boundsHeight;
+
+    if (boundsAspect < aspect) {
+      const centerX = (leftBound + rightBound) / 2;
+      const halfWidth = (boundsHeight * aspect) / 2;
+      leftBound = centerX - halfWidth;
+      rightBound = centerX + halfWidth;
+    } else if (boundsAspect > aspect) {
+      const centerY = (topBound + bottomBound) / 2;
+      const halfHeight = (boundsWidth / aspect) / 2;
+      topBound = centerY + halfHeight;
+      bottomBound = centerY - halfHeight;
+    }
+
+    const centerX = (leftBound + rightBound) / 2;
+    const centerY = (topBound + bottomBound) / 2;
+    const halfWidth = (rightBound - leftBound) / 2;
+    const halfHeight = (topBound - bottomBound) / 2;
+
+    if (!Number.isFinite(halfWidth) || !Number.isFinite(halfHeight) || halfWidth <= 0 || halfHeight <= 0) {
+      applySymmetricFrustum();
+      return;
+    }
+
+    this.camera.left = -halfWidth;
+    this.camera.right = halfWidth;
+    this.camera.top = halfHeight;
+    this.camera.bottom = -halfHeight;
     this.camera.updateProjectionMatrix();
 
+    const targetWithOffset = this.tempVector2
+      .copy(this.cameraTarget)
+      .addScaledVector(this.cameraRight, centerX)
+      .addScaledVector(this.cameraUp, centerY);
     const distance = radius * 2.6;
     this.tempVector
       .copy(this.cameraDirection)
       .multiplyScalar(distance)
-      .add(this.cameraTarget);
+      .add(targetWithOffset);
     this.camera.position.copy(this.tempVector);
-    this.camera.lookAt(this.cameraTarget);
+    this.camera.lookAt(targetWithOffset);
   }
 
   private recenterAndFrameModel(force = false): void {
@@ -294,7 +373,81 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       this.sceneRadius = Math.max(this.baseRadius, normalizedRadius);
     }
 
+    this.updateCameraBasisVectors();
+    this.updateCameraPlaneBounds(force);
     this.updateCameraFrustum();
+  }
+
+  private updateCameraBasisVectors(): void {
+    this.cameraForward.copy(this.cameraDirection).normalize().negate();
+    if (this.cameraForward.lengthSq() === 0) {
+      this.cameraForward.set(0, 0, -1);
+    }
+
+    this.cameraRight.crossVectors(this.cameraForward, this.camera.up).normalize();
+    if (this.cameraRight.lengthSq() === 0) {
+      this.cameraRight.set(1, 0, 0);
+    }
+
+    this.cameraUp.crossVectors(this.cameraRight, this.cameraForward).normalize();
+    if (this.cameraUp.lengthSq() === 0) {
+      this.cameraUp.set(0, 1, 0);
+    }
+  }
+
+  private updateCameraPlaneBounds(_force: boolean): void {
+    if (!this.model) {
+      return;
+    }
+
+    const min = this.boundingBox.min;
+    const max = this.boundingBox.max;
+    const corners = this.boundingBoxCorners;
+
+    corners[0].set(min.x, min.y, min.z);
+    corners[1].set(min.x, min.y, max.z);
+    corners[2].set(min.x, max.y, min.z);
+    corners[3].set(min.x, max.y, max.z);
+    corners[4].set(max.x, min.y, min.z);
+    corners[5].set(max.x, min.y, max.z);
+    corners[6].set(max.x, max.y, min.z);
+    corners[7].set(max.x, max.y, max.z);
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    for (const corner of corners) {
+      this.tempVector.copy(corner).sub(this.cameraTarget);
+      const x = this.tempVector.dot(this.cameraRight);
+      const y = this.tempVector.dot(this.cameraUp);
+
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
+      return;
+    }
+
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const padding = 1.35;
+    const minHalfExtent = 1;
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const paddedHalfWidth = Math.max((width * padding) / 2, minHalfExtent);
+    const paddedHalfHeight = Math.max((height * padding) / 2, minHalfExtent);
+
+    this.cameraPlaneBounds.minX = centerX - paddedHalfWidth;
+    this.cameraPlaneBounds.maxX = centerX + paddedHalfWidth;
+    this.cameraPlaneBounds.minY = centerY - paddedHalfHeight;
+    this.cameraPlaneBounds.maxY = centerY + paddedHalfHeight;
+    this.cameraBoundsInitialized = true;
   }
 
   private loadModel(): void {
