@@ -62,7 +62,9 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private boundingSphere = new THREE.Sphere();
   private modelCenter = new THREE.Vector3();
   private cameraDirection = new THREE.Vector3(1, 1, 1).normalize();
+  private cameraTarget = new THREE.Vector3();
   private sceneRadius = 1;
+  private baseRadius = 1;
   private tempVector = new THREE.Vector3();
 
   constructor(
@@ -184,8 +186,8 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     this.tempVector
       .copy(this.cameraDirection)
       .multiplyScalar(safeRadius * 3);
-    this.camera.position.copy(this.tempVector);
-    this.camera.lookAt(0, 0, 0);
+    this.camera.position.copy(this.cameraTarget).add(this.tempVector);
+    this.camera.lookAt(this.cameraTarget);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setClearColor(0xffffff, 1);
@@ -241,8 +243,8 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const distance = radius * 2.6;
     this.tempVector.copy(this.cameraDirection).multiplyScalar(distance);
-    this.camera.position.copy(this.tempVector);
-    this.camera.lookAt(0, 0, 0);
+    this.camera.position.copy(this.cameraTarget).add(this.tempVector);
+    this.camera.lookAt(this.cameraTarget);
   }
 
   private recenterAndFrameModel(force = false): void {
@@ -272,21 +274,34 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.modelCenter.lengthSq() > 1e-6) {
       this.model.position.sub(this.modelCenter);
       this.model.updateMatrixWorld(true);
+      this.boundingBox.setFromObject(this.model);
     }
 
-    this.boundingBox.setFromObject(this.model);
     this.boundingBox.getBoundingSphere(this.boundingSphere);
     if (!Number.isFinite(this.boundingSphere.radius) || this.boundingSphere.radius <= 0) {
       return;
     }
 
+    if (this.boundingSphere.center.lengthSq() > 1e-6) {
+      this.model.position.sub(this.boundingSphere.center);
+      this.model.updateMatrixWorld(true);
+      this.boundingBox.setFromObject(this.model);
+      this.boundingBox.getBoundingSphere(this.boundingSphere);
+      if (!Number.isFinite(this.boundingSphere.radius) || this.boundingSphere.radius <= 0) {
+        return;
+      }
+    }
+
     const normalizedRadius = Math.max(this.boundingSphere.radius, 1);
     if (force) {
       this.sceneRadius = normalizedRadius;
+      this.baseRadius = normalizedRadius;
     } else {
-      this.sceneRadius = Math.max(this.sceneRadius, normalizedRadius);
+      const minimumRadius = Math.max(this.baseRadius, normalizedRadius);
+      this.sceneRadius = Math.max(this.sceneRadius, minimumRadius);
     }
 
+    this.cameraTarget.copy(this.boundingSphere.center);
     this.updateCameraFrustum();
   }
 
@@ -326,9 +341,11 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         });
 
         this.scene.add(this.model);
-        this.recenterAndFrameModel(true);
         this.prepareExplodeAnimation();
-        this.setExploded(true);
+        this.precomputeExplodedBounds();
+        this.setExploded(true, {
+          onComplete: () => this.recenterAndFrameModel(true)
+        });
       },
       undefined,
       (error) => {
@@ -375,8 +392,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         return;
       }
 
-      const originalPosition = child.userData['originalPosition'] as THREE.Vector3;
-      if (!originalPosition) {
+      if (!child.userData['originalPosition']) {
         child.userData['originalPosition'] = child.position.clone();
       }
 
@@ -395,6 +411,8 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
           explodedPosition = child.position.clone();
       }
 
+      child.userData['explodedPosition'] = explodedPosition.clone();
+
       child.userData['tweenExplode'] = new Tween(child.position, this.tweenGroup)
         .to({ x: explodedPosition.x, y: explodedPosition.y, z: explodedPosition.z }, 1000)
         .easing(Easing.Cubic.Out);
@@ -405,10 +423,64 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  private setExploded(desired: boolean): void {
-    if (!this.model || this.isExploded === desired) {
+  private precomputeExplodedBounds(): void {
+    if (!this.model) {
       return;
     }
+
+    const snapshots: Array<{ mesh: THREE.Mesh; position: THREE.Vector3 }> = [];
+
+    this.model.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) {
+        return;
+      }
+
+      snapshots.push({ mesh: child, position: child.position.clone() });
+
+      const explodedPosition = child.userData['explodedPosition'] as THREE.Vector3 | undefined;
+      if (explodedPosition) {
+        child.position.copy(explodedPosition);
+      }
+    });
+
+    this.model.updateMatrixWorld(true);
+
+    const explodedBox = new THREE.Box3().setFromObject(this.model);
+    if (!explodedBox.isEmpty()) {
+      const explodedSphere = explodedBox.getBoundingSphere(new THREE.Sphere());
+      if (Number.isFinite(explodedSphere.radius) && explodedSphere.radius > 0) {
+        const normalizedRadius = Math.max(explodedSphere.radius, 1);
+        this.baseRadius = normalizedRadius;
+        this.sceneRadius = normalizedRadius;
+        this.updateCameraFrustum();
+      }
+    }
+
+    for (const snapshot of snapshots) {
+      snapshot.mesh.position.copy(snapshot.position);
+    }
+
+    this.model.updateMatrixWorld(true);
+  }
+
+  private setExploded(desired: boolean, options?: { onComplete?: () => void }): void {
+    if (!this.model) {
+      options?.onComplete?.();
+      return;
+    }
+
+    if (this.isExploded === desired) {
+      options?.onComplete?.();
+      return;
+    }
+
+    let activeTweens = 0;
+    const handleTweenComplete = () => {
+      activeTweens = Math.max(activeTweens - 1, 0);
+      if (activeTweens === 0) {
+        options?.onComplete?.();
+      }
+    };
 
     this.model.traverse((child) => {
       if (child instanceof THREE.Mesh) {
@@ -416,12 +488,18 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         const tween: Tween<THREE.Vector3> | undefined = child.userData[tweenKey];
         if (tween) {
           tween.stop();
+          tween.onComplete(handleTweenComplete);
           tween.start();
+          activeTweens += 1;
         }
       }
     });
 
     this.isExploded = desired;
+
+    if (activeTweens === 0) {
+      options?.onComplete?.();
+    }
   }
 
   private attachPointerEvents(): void {
