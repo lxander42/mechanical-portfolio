@@ -58,6 +58,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private detachFns: Array<() => void> = [];
   private clock = new THREE.Clock();
   private selectionInProgress = false;
+  private modelBoundsRadius = 5;
 
   constructor(
     private el: ElementRef,
@@ -161,13 +162,12 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private initScene(): void {
     this.scene = new THREE.Scene();
 
-    const aspect = this.el.nativeElement.clientWidth / this.el.nativeElement.clientHeight || 1;
     const frustumSize = 10;
     this.camera = new THREE.OrthographicCamera(
-      (frustumSize * aspect) / -2,
-      (frustumSize * aspect) / 2,
-      frustumSize / 2,
-      frustumSize / -2,
+      -frustumSize,
+      frustumSize,
+      frustumSize,
+      -frustumSize,
       0.1,
       1000
     );
@@ -202,14 +202,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.renderer.setSize(width, height, false);
-
-    const frustumSize = 10;
-    const aspect = width / height;
-    this.camera.left = (-frustumSize * aspect) / 2;
-    this.camera.right = (frustumSize * aspect) / 2;
-    this.camera.top = frustumSize / 2;
-    this.camera.bottom = -frustumSize / 2;
-    this.camera.updateProjectionMatrix();
+    this.frameSceneToModel();
   }
 
   private loadModel(): void {
@@ -225,7 +218,13 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
         const box = new THREE.Box3().setFromObject(this.model);
         const center = box.getCenter(new THREE.Vector3());
+        const sphere = box.getBoundingSphere(new THREE.Sphere());
         this.model.position.sub(center);
+
+        if (sphere && sphere.radius > 0) {
+          this.modelBoundsRadius = sphere.radius;
+          this.frameSceneToModel();
+        }
 
         this.navMeshes = [];
 
@@ -512,6 +511,31 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     this.labelElement.className = 'nav-label';
     this.labelElement.style.opacity = '0';
     this.container.appendChild(this.labelElement);
+  }
+
+  private frameSceneToModel(): void {
+    if (!this.camera || !this.container) {
+      return;
+    }
+
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+    if (width === 0 || height === 0) {
+      return;
+    }
+
+    const aspect = width / height;
+    const fitOffset = 1.35;
+    const baseRadius = Math.max(this.modelBoundsRadius, 2);
+    const radius = baseRadius * fitOffset;
+
+    this.camera.left = -radius * aspect;
+    this.camera.right = radius * aspect;
+    this.camera.top = radius;
+    this.camera.bottom = -radius;
+    this.camera.position.set(radius * 2, radius * 2, radius * 2);
+    this.camera.lookAt(0, 0, 0);
+    this.camera.updateProjectionMatrix();
   }
 
   private animate(): void {
