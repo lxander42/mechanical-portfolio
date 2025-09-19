@@ -58,6 +58,12 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private detachFns: Array<() => void> = [];
   private clock = new THREE.Clock();
   private selectionInProgress = false;
+  private frustumSize = 12;
+  private targetFrustumSize = 12;
+  private cameraOffset = new THREE.Vector3(8, 8, 8);
+  private modelBounds = new THREE.Box3();
+  private boundsCenter = new THREE.Vector3();
+  private boundsSize = new THREE.Vector3();
 
   constructor(
     private el: ElementRef,
@@ -162,12 +168,11 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     this.scene = new THREE.Scene();
 
     const aspect = this.el.nativeElement.clientWidth / this.el.nativeElement.clientHeight || 1;
-    const frustumSize = 10;
     this.camera = new THREE.OrthographicCamera(
-      (frustumSize * aspect) / -2,
-      (frustumSize * aspect) / 2,
-      frustumSize / 2,
-      frustumSize / -2,
+      (this.frustumSize * aspect) / -2,
+      (this.frustumSize * aspect) / 2,
+      this.frustumSize / 2,
+      this.frustumSize / -2,
       0.1,
       1000
     );
@@ -202,14 +207,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.renderer.setSize(width, height, false);
-
-    const frustumSize = 10;
-    const aspect = width / height;
-    this.camera.left = (-frustumSize * aspect) / 2;
-    this.camera.right = (frustumSize * aspect) / 2;
-    this.camera.top = frustumSize / 2;
-    this.camera.bottom = -frustumSize / 2;
-    this.camera.updateProjectionMatrix();
+    this.updateCameraFrustum();
   }
 
   private loadModel(): void {
@@ -253,6 +251,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.scene.add(this.model);
         this.prepareExplodeAnimation();
+        this.configureCameraFraming();
         this.setExploded(true);
       },
       undefined,
@@ -295,6 +294,11 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    const baseBounds = new THREE.Box3().setFromObject(this.model);
+    const baseSize = baseBounds.getSize(new THREE.Vector3());
+    const maxComponent = Math.max(baseSize.x, baseSize.y, baseSize.z);
+    const explosionMagnitude = Math.max(maxComponent * 1.8, maxComponent + 1.5);
+
     this.model.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) {
         return;
@@ -305,28 +309,31 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         child.userData['originalPosition'] = child.position.clone();
       }
 
-      let explodedPosition = child.position.clone();
-      switch (child.name) {
-        case 'Body1':
-          explodedPosition = child.position.clone().add(new THREE.Vector3(0, 0, 12));
-          break;
-        case 'Body1:2':
-          explodedPosition = child.position.clone().add(new THREE.Vector3(12, 0, 0));
-          break;
-        case 'Body1:3':
-          explodedPosition = child.position.clone().add(new THREE.Vector3(0, -12, 0));
-          break;
-        default:
-          explodedPosition = child.position.clone();
+      const dominantAxis = this.getDominantAxis(child.position);
+      const direction = new THREE.Vector3(
+        dominantAxis === 'x' ? Math.sign(child.position.x || 1) : 0,
+        dominantAxis === 'y' ? Math.sign(child.position.y || 1) : 0,
+        dominantAxis === 'z' ? Math.sign(child.position.z || 1) : 0
+      );
+      if (direction.lengthSq() === 0) {
+        direction.set(0, 0, 1);
       }
+
+      const explodedPosition = child.position.clone().add(direction.multiplyScalar(explosionMagnitude));
 
       child.userData['tweenExplode'] = new Tween(child.position, this.tweenGroup)
         .to({ x: explodedPosition.x, y: explodedPosition.y, z: explodedPosition.z }, 1000)
         .easing(Easing.Cubic.Out);
 
       child.userData['tweenImplode'] = new Tween(child.position, this.tweenGroup)
-        .to({ x: child.userData['originalPosition'].x, y: child.userData['originalPosition'].y, z: child.userData['originalPosition'].z }, 1000)
+        .to({
+          x: child.userData['originalPosition'].x,
+          y: child.userData['originalPosition'].y,
+          z: child.userData['originalPosition'].z
+        }, 1000)
         .easing(Easing.Cubic.Out);
+
+      child.userData['explodedPosition'] = explodedPosition.clone();
     });
   }
 
@@ -524,6 +531,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     this.tweenGroup.update(performance.now());
     this.updatePulse();
     this.updateLabelPosition();
+    this.updateCameraFrame();
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -543,5 +551,123 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       const pulse = 1 + amplitude * Math.sin(elapsed * 2 + mesh.id * 0.5);
       mesh.scale.set(baseScale.x * pulse, baseScale.y * pulse, baseScale.z * pulse);
     }
+  }
+
+  private updateCameraFrustum(): void {
+    if (!this.camera || !this.container) {
+      return;
+    }
+
+    const width = this.container.clientWidth || 1;
+    const height = this.container.clientHeight || 1;
+    const aspect = width / height;
+    this.camera.left = (-this.frustumSize * aspect) / 2;
+    this.camera.right = (this.frustumSize * aspect) / 2;
+    this.camera.top = this.frustumSize / 2;
+    this.camera.bottom = -this.frustumSize / 2;
+    this.camera.updateProjectionMatrix();
+  }
+
+  private configureCameraFraming(): void {
+    if (!this.model || !this.camera) {
+      return;
+    }
+
+    const implodedBounds = this.computeBoundsForState('imploded');
+    const explodedBounds = this.computeBoundsForState('exploded');
+
+    const implodedSize = implodedBounds.getSize(new THREE.Vector3());
+    const explodedSize = explodedBounds.getSize(new THREE.Vector3());
+    const maxDimension = Math.max(
+      implodedSize.x,
+      implodedSize.y,
+      implodedSize.z,
+      explodedSize.x,
+      explodedSize.y,
+      explodedSize.z
+    );
+
+    this.boundsSize.copy(explodedSize);
+    this.targetFrustumSize = Math.max(maxDimension * 1.6, 6);
+    this.frustumSize = this.targetFrustumSize;
+    this.updateCameraFrustum();
+
+    const framingDistance = Math.max(maxDimension * 1.2, 6);
+    const baseCenter = implodedBounds.getCenter(new THREE.Vector3());
+    this.cameraOffset.set(framingDistance, framingDistance, framingDistance);
+    this.camera.position.copy(baseCenter.clone().add(this.cameraOffset));
+    this.camera.lookAt(baseCenter);
+  }
+
+  private computeBoundsForState(state: 'imploded' | 'exploded'): THREE.Box3 {
+    const bounds = new THREE.Box3();
+    if (!this.model) {
+      return bounds;
+    }
+
+    const restore = new Map<THREE.Mesh, THREE.Vector3>();
+
+    this.model.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) {
+        return;
+      }
+
+      restore.set(child, child.position.clone());
+
+      const target =
+        state === 'exploded'
+          ? (child.userData['explodedPosition'] as THREE.Vector3 | undefined)
+          : (child.userData['originalPosition'] as THREE.Vector3 | undefined);
+
+      if (target) {
+        child.position.copy(target);
+      }
+    });
+
+    this.model.updateMatrixWorld(true);
+    bounds.setFromObject(this.model);
+
+    restore.forEach((position, mesh) => {
+      mesh.position.copy(position);
+    });
+    this.model.updateMatrixWorld(true);
+
+    return bounds;
+  }
+
+  private updateCameraFrame(): void {
+    if (!this.model || !this.camera) {
+      return;
+    }
+
+    this.model.updateMatrixWorld(true);
+    this.modelBounds.setFromObject(this.model);
+    this.modelBounds.getCenter(this.boundsCenter);
+    this.modelBounds.getSize(this.boundsSize);
+
+    const maxDimension = Math.max(this.boundsSize.x, this.boundsSize.y, this.boundsSize.z);
+    const desiredFrustum = Math.max(this.targetFrustumSize, maxDimension * 1.1);
+    if (Math.abs(desiredFrustum - this.frustumSize) > 0.01) {
+      this.frustumSize = THREE.MathUtils.lerp(this.frustumSize, desiredFrustum, 0.08);
+      this.updateCameraFrustum();
+    }
+
+    const desiredPosition = this.boundsCenter.clone().add(this.cameraOffset);
+    this.camera.position.lerp(desiredPosition, 0.1);
+    this.camera.lookAt(this.boundsCenter);
+  }
+
+  private getDominantAxis(position: THREE.Vector3): 'x' | 'y' | 'z' {
+    const absX = Math.abs(position.x);
+    const absY = Math.abs(position.y);
+    const absZ = Math.abs(position.z);
+
+    if (absX >= absY && absX >= absZ) {
+      return 'x';
+    }
+    if (absY >= absX && absY >= absZ) {
+      return 'y';
+    }
+    return 'z';
   }
 }
