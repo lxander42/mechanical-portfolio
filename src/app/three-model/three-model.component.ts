@@ -44,6 +44,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private renderer!: THREE.WebGLRenderer;
   private modelGroup!: THREE.Group;
   private modelCenter = new THREE.Vector3();
+  private modelRadius = 1;
   private isExploded = false;
   private tweenGroup = new Group();
   private raycaster = new THREE.Raycaster();
@@ -213,6 +214,10 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     this.camera.top = frustumSize / 2;
     this.camera.bottom = -frustumSize / 2;
     this.camera.updateProjectionMatrix();
+    if (this.modelGroup) {
+      const cameraOffset = this.computeCameraOffset(this.modelRadius);
+      this.camera.position.copy(this.modelCenter).add(cameraOffset);
+    }
     this.camera.lookAt(this.modelCenter);
   }
 
@@ -272,23 +277,56 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.modelGroup.updateMatrixWorld(true);
 
-    const box = new THREE.Box3().setFromObject(this.modelGroup);
-    const center = box.getCenter(new THREE.Vector3());
+    const { box: initialNavBounds, hasBounds: hasInitialNavBounds } = this.computeNavBounds();
+    const boxToCenter = hasInitialNavBounds
+      ? initialNavBounds
+      : new THREE.Box3().setFromObject(this.modelGroup);
+    const center = boxToCenter.getCenter(new THREE.Vector3());
 
-    this.modelGroup.position.sub(center);
+    this.modelGroup.position.copy(center).multiplyScalar(-1);
     this.modelGroup.updateMatrixWorld(true);
 
-    const recenteredBox = new THREE.Box3().setFromObject(this.modelGroup);
-    const boundingSphere = recenteredBox.getBoundingSphere(new THREE.Sphere());
+    const { box: finalNavBounds, hasBounds: hasFinalNavBounds } = this.computeNavBounds();
+    const framingBox = hasFinalNavBounds
+      ? finalNavBounds
+      : new THREE.Box3().setFromObject(this.modelGroup);
+    const boundingSphere = framingBox.getBoundingSphere(new THREE.Sphere());
 
-    this.modelCenter.copy(boundingSphere.center);
+    this.modelCenter.copy(framingBox.getCenter(new THREE.Vector3()));
+    this.modelRadius = Math.max(boundingSphere.radius, 1);
 
-    const distance = Math.max(boundingSphere.radius * 2.2, 6);
-    const cameraOffset = new THREE.Vector3(distance, distance, distance);
+    const cameraOffset = this.computeCameraOffset(this.modelRadius);
     this.camera.position.copy(this.modelCenter).add(cameraOffset);
     this.camera.lookAt(this.modelCenter);
     this.camera.updateProjectionMatrix();
     this.camera.updateMatrixWorld();
+  }
+
+  private computeNavBounds(): { box: THREE.Box3; hasBounds: boolean } {
+    const box = new THREE.Box3();
+    let hasBounds = false;
+
+    this.modelGroup.traverse((child) => {
+      if (!(child instanceof THREE.Mesh) || !NAV_TARGETS[child.name]) {
+        return;
+      }
+
+      const childBox = new THREE.Box3().setFromObject(child);
+      if (!hasBounds) {
+        box.copy(childBox);
+        hasBounds = true;
+      } else {
+        box.union(childBox);
+      }
+    });
+
+    return { box, hasBounds };
+  }
+
+  private computeCameraOffset(radius: number): THREE.Vector3 {
+    const distance = Math.max(radius * 2.6, 10);
+    const viewDirection = new THREE.Vector3(1.6, 1.25, 1.45).normalize();
+    return viewDirection.multiplyScalar(distance);
   }
 
   private createEdgeMaterial(): THREE.ShaderMaterial {
