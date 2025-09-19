@@ -58,6 +58,8 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private detachFns: Array<() => void> = [];
   private clock = new THREE.Clock();
   private selectionInProgress = false;
+  private baseFrustumSize = 10;
+  private readonly cameraOffsetDirection = new THREE.Vector3(1, 1.1, 1);
 
   constructor(
     private el: ElementRef,
@@ -161,18 +163,19 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private initScene(): void {
     this.scene = new THREE.Scene();
 
-    const aspect = this.el.nativeElement.clientWidth / this.el.nativeElement.clientHeight || 1;
-    const frustumSize = 10;
+    const width = this.container.clientWidth || 1;
+    const height = this.container.clientHeight || 1;
+    const aspect = height === 0 ? 1 : width / height;
     this.camera = new THREE.OrthographicCamera(
-      (frustumSize * aspect) / -2,
-      (frustumSize * aspect) / 2,
-      frustumSize / 2,
-      frustumSize / -2,
+      (-this.baseFrustumSize * aspect) / 2,
+      (this.baseFrustumSize * aspect) / 2,
+      this.baseFrustumSize / 2,
+      -this.baseFrustumSize / 2,
       0.1,
       1000
     );
 
-    this.camera.position.set(5, 5, 5);
+    this.camera.position.copy(this.cameraOffsetDirection.clone().setLength(10));
     this.camera.lookAt(0, 0, 0);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -203,13 +206,46 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.renderer.setSize(width, height, false);
 
-    const frustumSize = 10;
     const aspect = width / height;
-    this.camera.left = (-frustumSize * aspect) / 2;
-    this.camera.right = (frustumSize * aspect) / 2;
-    this.camera.top = frustumSize / 2;
-    this.camera.bottom = -frustumSize / 2;
+    this.updateCameraFrustum(aspect);
+  }
+
+  private updateCameraFrustum(aspect: number): void {
+    if (!this.camera) {
+      return;
+    }
+
+    this.camera.left = (-this.baseFrustumSize * aspect) / 2;
+    this.camera.right = (this.baseFrustumSize * aspect) / 2;
+    this.camera.top = this.baseFrustumSize / 2;
+    this.camera.bottom = -this.baseFrustumSize / 2;
     this.camera.updateProjectionMatrix();
+  }
+
+  private fitCameraToModel(box: THREE.Box3): void {
+    if (!this.camera || !this.container) {
+      return;
+    }
+
+    const size = box.getSize(new THREE.Vector3());
+    const maxDimension = Math.max(size.x, size.y, size.z);
+    if (maxDimension > 0) {
+      this.baseFrustumSize = maxDimension * 1.2;
+    }
+
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    const radius = sphere.radius > 0 ? sphere.radius : this.baseFrustumSize;
+    const distance = radius * 2.4;
+    const direction = this.cameraOffsetDirection.clone().normalize();
+    this.camera.position.copy(direction.multiplyScalar(distance));
+    this.camera.near = Math.max(distance / 100, 0.1);
+    this.camera.far = distance * 10;
+    this.camera.lookAt(0, 0, 0);
+
+    const width = this.container.clientWidth || 1;
+    const height = this.container.clientHeight || 1;
+    const aspect = height === 0 ? 1 : width / height;
+    this.updateCameraFrustum(aspect);
   }
 
   private loadModel(): void {
@@ -226,6 +262,8 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         const box = new THREE.Box3().setFromObject(this.model);
         const center = box.getCenter(new THREE.Vector3());
         this.model.position.sub(center);
+
+        this.fitCameraToModel(box);
 
         this.navMeshes = [];
 
@@ -254,6 +292,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
         this.scene.add(this.model);
         this.prepareExplodeAnimation();
         this.setExploded(true);
+        this.onWindowResize();
       },
       undefined,
       (error) => {

@@ -53,6 +53,7 @@ export class AppComponent implements OnDestroy {
     this.activeSection = null;
     this.suppressNavigationReveal = false;
     this.threeModel?.resetSelection();
+    void this.router.navigate(['/']);
   }
 
   private syncContentWithRoute(url: string): void {
