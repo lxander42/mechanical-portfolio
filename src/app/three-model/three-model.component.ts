@@ -29,6 +29,8 @@ const NAV_TARGETS: Record<string, SectionEvent> = {
   'Body1:3': { key: 'portfolio', label: 'Portfolio' }
 };
 
+const CAMERA_PADDING = 1.35;
+
 @Component({
   selector: 'app-three-model',
   standalone: true,
@@ -62,9 +64,16 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private boundingSphere = new THREE.Sphere();
   private cameraDirection = new THREE.Vector3(1, 1, 1).normalize();
   private cameraTarget = new THREE.Vector3();
+  private cameraBaseTarget = new THREE.Vector3();
   private baseRadius = 1;
   private sceneRadius = 1;
+  private cachedCameraBounds: { minX: number; maxX: number; minY: number; maxY: number } | null = null;
   private tempVector = new THREE.Vector3();
+  private tempVector2 = new THREE.Vector3();
+  private tempVector3 = new THREE.Vector3();
+  private cameraOffset = new THREE.Vector3();
+  private cameraRight = new THREE.Vector3();
+  private cameraUp = new THREE.Vector3();
 
   constructor(
     private el: ElementRef,
@@ -230,21 +239,84 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    const radius = Math.max(this.sceneRadius, this.baseRadius, 1);
     const aspect = viewWidth / viewHeight;
-    const padding = 1.35;
-    const halfSize = radius * padding;
+    if (!Number.isFinite(aspect) || aspect <= 0) {
+      return;
+    }
 
-    this.camera.left = -halfSize * aspect;
-    this.camera.right = halfSize * aspect;
-    this.camera.top = halfSize;
-    this.camera.bottom = -halfSize;
+    const radius = Math.max(this.sceneRadius, this.baseRadius, 1);
+    const fallbackHalf = radius * CAMERA_PADDING;
+
+    let centerX = 0;
+    let centerY = 0;
+    let halfWidth = fallbackHalf * aspect;
+    let halfHeight = fallbackHalf;
+
+    if (this.cachedCameraBounds) {
+      const { minX, maxX, minY, maxY } = this.cachedCameraBounds;
+      centerX = Number.isFinite(minX) && Number.isFinite(maxX) ? (minX + maxX) / 2 : 0;
+      centerY = Number.isFinite(minY) && Number.isFinite(maxY) ? (minY + maxY) / 2 : 0;
+
+      halfWidth = Number.isFinite(maxX - minX)
+        ? Math.max((maxX - minX) / 2, 0)
+        : fallbackHalf;
+      halfHeight = Number.isFinite(maxY - minY)
+        ? Math.max((maxY - minY) / 2, 0)
+        : fallbackHalf;
+      const minHalf = Math.max(fallbackHalf * 1e-3, 1e-4);
+      halfWidth = Math.max(halfWidth, minHalf);
+      halfHeight = Math.max(halfHeight, minHalf);
+
+      const currentAspect = halfWidth / halfHeight;
+      if (currentAspect < aspect) {
+        halfWidth = halfHeight * aspect;
+      } else if (currentAspect > aspect) {
+        halfHeight = halfWidth / aspect;
+      }
+    }
+
+    this.camera.left = -halfWidth;
+    this.camera.right = halfWidth;
+    this.camera.top = halfHeight;
+    this.camera.bottom = -halfHeight;
     this.camera.updateProjectionMatrix();
+
+    const viewDir = this.tempVector2.copy(this.cameraDirection).multiplyScalar(-1).normalize();
+    let upReference = this.tempVector3.set(0, 1, 0);
+    if (Math.abs(viewDir.dot(upReference)) > 0.999) {
+      upReference = upReference.set(1, 0, 0);
+    }
+
+    this.cameraRight.crossVectors(upReference, viewDir);
+    if (this.cameraRight.lengthSq() < 1e-6) {
+      this.cameraRight.crossVectors(this.tempVector3.set(1, 0, 0), viewDir);
+      if (this.cameraRight.lengthSq() < 1e-6) {
+        this.cameraRight.crossVectors(this.tempVector3.set(0, 0, 1), viewDir);
+      }
+    }
+    if (this.cameraRight.lengthSq() < 1e-6) {
+      this.cameraRight.set(1, 0, 0);
+    } else {
+      this.cameraRight.normalize();
+    }
+
+    this.cameraUp.crossVectors(viewDir, this.cameraRight);
+    if (this.cameraUp.lengthSq() < 1e-6) {
+      this.cameraUp.copy(upReference).normalize();
+    } else {
+      this.cameraUp.normalize();
+    }
+
+    this.cameraOffset.set(0, 0, 0);
+    this.cameraOffset.addScaledVector(this.cameraRight, centerX);
+    this.cameraOffset.addScaledVector(this.cameraUp, centerY);
+
+    this.cameraTarget.copy(this.cameraBaseTarget).add(this.cameraOffset);
 
     const distance = radius * 2.6;
     this.tempVector
       .copy(this.cameraDirection)
-      .multiplyScalar(distance)
+      .setLength(distance)
       .add(this.cameraTarget);
     this.camera.position.copy(this.tempVector);
     this.camera.lookAt(this.cameraTarget);
@@ -284,6 +356,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    this.cameraBaseTarget.copy(this.boundingSphere.center);
     this.cameraTarget.copy(this.boundingSphere.center);
 
     const normalizedRadius = Math.max(this.boundingSphere.radius, 1);
@@ -292,6 +365,61 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       this.sceneRadius = normalizedRadius;
     } else {
       this.sceneRadius = Math.max(this.baseRadius, normalizedRadius);
+    }
+
+    let nextBounds: { minX: number; maxX: number; minY: number; maxY: number } | null = null;
+    this.camera.updateMatrixWorld(true);
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    const { min, max } = this.boundingBox;
+    for (let ix = 0; ix < 2; ix++) {
+      const x = ix === 0 ? min.x : max.x;
+      for (let iy = 0; iy < 2; iy++) {
+        const y = iy === 0 ? min.y : max.y;
+        for (let iz = 0; iz < 2; iz++) {
+          const z = iz === 0 ? min.z : max.z;
+          this.tempVector2.set(x, y, z).applyMatrix4(this.camera.matrixWorldInverse);
+          minX = Math.min(minX, this.tempVector2.x);
+          maxX = Math.max(maxX, this.tempVector2.x);
+          minY = Math.min(minY, this.tempVector2.y);
+          maxY = Math.max(maxY, this.tempVector2.y);
+        }
+      }
+    }
+
+    const fallbackHalf = normalizedRadius * CAMERA_PADDING;
+    if (
+      Number.isFinite(minX) &&
+      Number.isFinite(maxX) &&
+      Number.isFinite(minY) &&
+      Number.isFinite(maxY)
+    ) {
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      let halfWidth = ((maxX - minX) / 2) * CAMERA_PADDING;
+      let halfHeight = ((maxY - minY) / 2) * CAMERA_PADDING;
+
+      if (!Number.isFinite(halfWidth) || halfWidth <= 0) {
+        halfWidth = fallbackHalf;
+      }
+      if (!Number.isFinite(halfHeight) || halfHeight <= 0) {
+        halfHeight = fallbackHalf;
+      }
+
+      nextBounds = {
+        minX: centerX - halfWidth,
+        maxX: centerX + halfWidth,
+        minY: centerY - halfHeight,
+        maxY: centerY + halfHeight
+      };
+    }
+
+    if (nextBounds) {
+      this.cachedCameraBounds = nextBounds;
     }
 
     this.updateCameraFrustum();
