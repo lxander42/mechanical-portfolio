@@ -65,6 +65,21 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private baseRadius = 1;
   private sceneRadius = 1;
   private tempVector = new THREE.Vector3();
+  private tempVector2 = new THREE.Vector3();
+  private planeRight = new THREE.Vector3();
+  private planeUp = new THREE.Vector3();
+  private planeOffset = new THREE.Vector3();
+  private boundingCorners: THREE.Vector3[] = Array.from({ length: 8 }, () => new THREE.Vector3());
+  private framingState = {
+    minX: 0,
+    maxX: 0,
+    minY: 0,
+    maxY: 0,
+    planeCenterX: 0,
+    planeCenterY: 0,
+    halfWidth: 1,
+    halfHeight: 1
+  };
 
   constructor(
     private el: ElementRef,
@@ -232,22 +247,52 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const radius = Math.max(this.sceneRadius, this.baseRadius, 1);
     const aspect = viewWidth / viewHeight;
-    const padding = 1.35;
-    const halfSize = radius * padding;
+    const { halfWidth, halfHeight, planeCenterX, planeCenterY } = this.framingState;
 
-    this.camera.left = -halfSize * aspect;
-    this.camera.right = halfSize * aspect;
-    this.camera.top = halfSize;
-    this.camera.bottom = -halfSize;
+    if (!Number.isFinite(halfWidth) || !Number.isFinite(halfHeight)) {
+      return;
+    }
+
+    let orthoHalfWidth = Math.max(halfWidth, 1);
+    let orthoHalfHeight = Math.max(halfHeight, 1);
+
+    if (orthoHalfHeight === 0) {
+      orthoHalfHeight = 1;
+    }
+
+    const currentAspect = orthoHalfWidth / orthoHalfHeight;
+    if (currentAspect < aspect) {
+      orthoHalfWidth = orthoHalfHeight * aspect;
+    } else if (currentAspect > 0 && currentAspect > aspect) {
+      orthoHalfHeight = orthoHalfWidth / aspect;
+    }
+
+    this.camera.left = -orthoHalfWidth;
+    this.camera.right = orthoHalfWidth;
+    this.camera.top = orthoHalfHeight;
+    this.camera.bottom = -orthoHalfHeight;
     this.camera.updateProjectionMatrix();
 
     const distance = radius * 2.6;
+    this.planeOffset
+      .copy(this.planeRight)
+      .multiplyScalar(planeCenterX)
+      .addScaledVector(this.planeUp, planeCenterY);
+
+    const target = this.tempVector2.copy(this.cameraTarget).add(this.planeOffset);
+
+    // Bias the framing downward slightly so the exploded cube keeps headroom.
+    const verticalBias = orthoHalfHeight * 0.1;
+    if (Number.isFinite(verticalBias) && verticalBias > 0) {
+      target.addScaledVector(this.planeUp, -verticalBias);
+    }
+
     this.tempVector
       .copy(this.cameraDirection)
       .multiplyScalar(distance)
-      .add(this.cameraTarget);
+      .add(target);
     this.camera.position.copy(this.tempVector);
-    this.camera.lookAt(this.cameraTarget);
+    this.camera.lookAt(target);
   }
 
   private recenterAndFrameModel(force = false): void {
@@ -285,6 +330,78 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.cameraTarget.copy(this.boundingSphere.center);
+
+    this.planeRight
+      .copy(this.cameraDirection)
+      .cross(this.camera.up)
+      .normalize();
+    if (!Number.isFinite(this.planeRight.lengthSq()) || this.planeRight.lengthSq() < 1e-10) {
+      this.planeRight.set(1, 0, 0);
+    }
+
+    this.planeUp
+      .copy(this.planeRight)
+      .cross(this.cameraDirection)
+      .normalize();
+    if (!Number.isFinite(this.planeUp.lengthSq()) || this.planeUp.lengthSq() < 1e-10) {
+      this.planeUp.set(0, 1, 0);
+    }
+
+    const min = this.boundingBox.min;
+    const max = this.boundingBox.max;
+    let cornerIndex = 0;
+    for (const x of [min.x, max.x]) {
+      for (const y of [min.y, max.y]) {
+        for (const z of [min.z, max.z]) {
+          this.boundingCorners[cornerIndex++].set(x, y, z);
+        }
+      }
+    }
+
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const corner of this.boundingCorners) {
+      this.tempVector.copy(corner).sub(this.cameraTarget);
+      const projectedX = this.tempVector.dot(this.planeRight);
+      const projectedY = this.tempVector.dot(this.planeUp);
+      if (!Number.isFinite(projectedX) || !Number.isFinite(projectedY)) {
+        continue;
+      }
+
+      minX = Math.min(minX, projectedX);
+      maxX = Math.max(maxX, projectedX);
+      minY = Math.min(minY, projectedY);
+      maxY = Math.max(maxY, projectedY);
+    }
+
+    if (
+      !Number.isFinite(minX) ||
+      !Number.isFinite(maxX) ||
+      !Number.isFinite(minY) ||
+      !Number.isFinite(maxY)
+    ) {
+      return;
+    }
+
+    const planeCenterX = (minX + maxX) / 2;
+    const planeCenterY = (minY + maxY) / 2;
+    const padding = 1.35;
+    const halfWidth = Math.max(((maxX - minX) / 2) * padding, 1);
+    const halfHeight = Math.max(((maxY - minY) / 2) * padding, 1);
+
+    this.framingState = {
+      minX,
+      maxX,
+      minY,
+      maxY,
+      planeCenterX,
+      planeCenterY,
+      halfWidth,
+      halfHeight
+    };
 
     const normalizedRadius = Math.max(this.boundingSphere.radius, 1);
     if (force) {
