@@ -65,6 +65,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private baseRadius = 1;
   private sceneRadius = 1;
   private tempVector = new THREE.Vector3();
+  private planeOffset = new THREE.Vector3();
 
   constructor(
     private el: ElementRef,
@@ -233,15 +234,82 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     const radius = Math.max(this.sceneRadius, this.baseRadius, 1);
     const aspect = viewWidth / viewHeight;
     const padding = 1.35;
-    const halfSize = radius * padding;
 
-    this.camera.left = -halfSize * aspect;
-    this.camera.right = halfSize * aspect;
-    this.camera.top = halfSize;
-    this.camera.bottom = -halfSize;
+    const baseCenter = this.boundingSphere.center;
+    const baseCenterX = Number.isFinite(baseCenter.x) ? baseCenter.x : 0;
+    const baseCenterY = Number.isFinite(baseCenter.y) ? baseCenter.y : 0;
+    const baseCenterZ = Number.isFinite(baseCenter.z) ? baseCenter.z : 0;
+
+    let centerX = baseCenterX;
+    let centerY = baseCenterY;
+    let halfWidth = 0;
+    let halfHeight = 0;
+
+    if (!this.boundingBox.isEmpty()) {
+      const min = this.boundingBox.min;
+      const max = this.boundingBox.max;
+
+      if (Number.isFinite(min.x) && Number.isFinite(max.x)) {
+        centerX = (min.x + max.x) * 0.5;
+        halfWidth = Math.abs(max.x - centerX);
+      }
+
+      if (Number.isFinite(min.y) && Number.isFinite(max.y)) {
+        centerY = (min.y + max.y) * 0.5;
+        halfHeight = Math.abs(max.y - centerY);
+      }
+    }
+
+    halfWidth = Math.max(halfWidth * padding, 0);
+    halfHeight = Math.max(halfHeight * padding, 0);
+
+    const fallbackHalfHeight = radius * padding;
+    const fallbackHalfWidth = fallbackHalfHeight * aspect;
+
+    halfWidth = Math.max(halfWidth, fallbackHalfWidth);
+    halfHeight = Math.max(halfHeight, fallbackHalfHeight);
+
+    const requiredWidth = halfHeight * aspect;
+    const requiredHeight = halfWidth / aspect;
+
+    if (halfWidth < requiredWidth) {
+      halfWidth = requiredWidth;
+    } else if (halfHeight < requiredHeight) {
+      halfHeight = requiredHeight;
+    }
+
+    this.camera.left = -halfWidth;
+    this.camera.right = halfWidth;
+    this.camera.top = halfHeight;
+    this.camera.bottom = -halfHeight;
     this.camera.updateProjectionMatrix();
 
-    const distance = radius * 2.6;
+    let planeOffsetX = centerX - baseCenterX;
+    let planeOffsetY = centerY - baseCenterY;
+
+    const verticalBias = halfHeight * 0.1;
+    if (Number.isFinite(verticalBias) && verticalBias !== 0) {
+      planeOffsetY += verticalBias;
+    }
+
+    if (!Number.isFinite(planeOffsetX)) {
+      planeOffsetX = 0;
+    }
+    if (!Number.isFinite(planeOffsetY)) {
+      planeOffsetY = 0;
+    }
+
+    this.planeOffset.set(planeOffsetX, planeOffsetY, 0);
+
+    this.cameraTarget.set(
+      baseCenterX + this.planeOffset.x,
+      baseCenterY + this.planeOffset.y,
+      baseCenterZ
+    );
+
+    const paddedPlaneRadius = Math.max(halfWidth, halfHeight);
+    const planeRadius = paddedPlaneRadius / padding;
+    const distance = Math.max(radius, planeRadius) * 2.6;
     this.tempVector
       .copy(this.cameraDirection)
       .multiplyScalar(distance)
