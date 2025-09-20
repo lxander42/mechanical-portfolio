@@ -9,7 +9,8 @@ import {
   OnDestroy,
   OnInit,
   Output,
-  PLATFORM_ID
+  PLATFORM_ID,
+  isDevMode
 } from '@angular/core';
 import * as THREE from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
@@ -20,6 +21,19 @@ export type SectionKey = 'about' | 'resume' | 'portfolio' | 'wiki';
 export interface SectionEvent {
   key: SectionKey;
   label: string;
+}
+
+interface FrustumValidationSnapshot {
+  maxNdcX: number;
+  maxNdcY: number;
+  requiredHalfWidth: number;
+  requiredHalfHeight: number;
+  widthScale: number;
+  heightScale: number;
+}
+
+interface FrustumAdjustmentRecord extends FrustumValidationSnapshot {
+  timestamp: number;
 }
 
 const NAV_TARGETS: Record<string, SectionEvent> = {
@@ -65,6 +79,13 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private baseRadius = 1;
   private sceneRadius = 1;
   private tempVector = new THREE.Vector3();
+  private readonly frustumValidationEnabled = isDevMode();
+  private readonly frustumValidationEpsilon = 1e-3;
+  private readonly boundingBoxCorners: THREE.Vector3[] = Array.from({ length: 8 }, () => new THREE.Vector3());
+  private hasBoundingBoxCorners = false;
+  private frustumProbeVector = new THREE.Vector3();
+  private lastFrustumDiagnostics: FrustumValidationSnapshot | null = null;
+  private frustumAdjustmentLog: FrustumAdjustmentRecord[] = [];
 
   constructor(
     private el: ElementRef,
@@ -233,13 +254,10 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     const radius = Math.max(this.sceneRadius, this.baseRadius, 1);
     const aspect = viewWidth / viewHeight;
     const padding = 1.35;
-    const halfSize = radius * padding;
-
-    this.camera.left = -halfSize * aspect;
-    this.camera.right = halfSize * aspect;
-    this.camera.top = halfSize;
-    this.camera.bottom = -halfSize;
-    this.camera.updateProjectionMatrix();
+    const baseHalfHeight = radius * padding;
+    const baseHalfWidth = baseHalfHeight * aspect;
+    let halfWidth = Math.max(baseHalfWidth, Math.abs(this.camera.right), Math.abs(this.camera.left));
+    let halfHeight = Math.max(baseHalfHeight, Math.abs(this.camera.top), Math.abs(this.camera.bottom));
 
     const distance = radius * 2.6;
     this.tempVector
@@ -248,6 +266,133 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       .add(this.cameraTarget);
     this.camera.position.copy(this.tempVector);
     this.camera.lookAt(this.cameraTarget);
+    this.camera.updateMatrixWorld(true);
+
+    this.camera.left = -halfWidth;
+    this.camera.right = halfWidth;
+    this.camera.top = halfHeight;
+    this.camera.bottom = -halfHeight;
+    this.camera.updateProjectionMatrix();
+
+    if (this.frustumValidationEnabled && this.hasBoundingBoxCorners) {
+      let maxNdcX = 0;
+      let maxNdcY = 0;
+      let minViewX = Number.POSITIVE_INFINITY;
+      let maxViewX = Number.NEGATIVE_INFINITY;
+      let minViewY = Number.POSITIVE_INFINITY;
+      let maxViewY = Number.NEGATIVE_INFINITY;
+
+      for (const corner of this.boundingBoxCorners) {
+        this.frustumProbeVector.copy(corner).project(this.camera);
+        maxNdcX = Math.max(maxNdcX, Math.abs(this.frustumProbeVector.x));
+        maxNdcY = Math.max(maxNdcY, Math.abs(this.frustumProbeVector.y));
+      }
+
+      for (const corner of this.boundingBoxCorners) {
+        this.frustumProbeVector.copy(corner).applyMatrix4(this.camera.matrixWorldInverse);
+        minViewX = Math.min(minViewX, this.frustumProbeVector.x);
+        maxViewX = Math.max(maxViewX, this.frustumProbeVector.x);
+        minViewY = Math.min(minViewY, this.frustumProbeVector.y);
+        maxViewY = Math.max(maxViewY, this.frustumProbeVector.y);
+      }
+
+      const requiredHalfWidth = Math.max(Math.abs(minViewX), Math.abs(maxViewX));
+      const requiredHalfHeight = Math.max(Math.abs(minViewY), Math.abs(maxViewY));
+
+      let widthScale = 1;
+      let heightScale = 1;
+
+      if (maxNdcX > 1) {
+        widthScale = Math.max(widthScale, maxNdcX + this.frustumValidationEpsilon);
+      }
+      if (maxNdcY > 1) {
+        heightScale = Math.max(heightScale, maxNdcY + this.frustumValidationEpsilon);
+      }
+      if (requiredHalfWidth > halfWidth) {
+        widthScale = Math.max(
+          widthScale,
+          (requiredHalfWidth + this.frustumValidationEpsilon) / Math.max(halfWidth, Number.EPSILON)
+        );
+      }
+      if (requiredHalfHeight > halfHeight) {
+        heightScale = Math.max(
+          heightScale,
+          (requiredHalfHeight + this.frustumValidationEpsilon) / Math.max(halfHeight, Number.EPSILON)
+        );
+      }
+
+      const snapshot: FrustumValidationSnapshot = {
+        maxNdcX,
+        maxNdcY,
+        requiredHalfWidth,
+        requiredHalfHeight,
+        widthScale,
+        heightScale
+      };
+      this.lastFrustumDiagnostics = snapshot;
+
+      if (widthScale > 1 || heightScale > 1) {
+        halfWidth *= widthScale;
+        halfHeight *= heightScale;
+        this.camera.left = -halfWidth;
+        this.camera.right = halfWidth;
+        this.camera.top = halfHeight;
+        this.camera.bottom = -halfHeight;
+        this.camera.updateProjectionMatrix();
+        this.recordFrustumAdjustment(snapshot);
+      }
+    } else if (this.frustumValidationEnabled) {
+      this.lastFrustumDiagnostics = null;
+    }
+  }
+
+  private cacheBoundingBoxCorners(): void {
+    if (this.boundingBox.isEmpty()) {
+      this.hasBoundingBoxCorners = false;
+      return;
+    }
+
+    const { min, max } = this.boundingBox;
+    if (
+      !Number.isFinite(min.x) ||
+      !Number.isFinite(min.y) ||
+      !Number.isFinite(min.z) ||
+      !Number.isFinite(max.x) ||
+      !Number.isFinite(max.y) ||
+      !Number.isFinite(max.z)
+    ) {
+      this.hasBoundingBoxCorners = false;
+      return;
+    }
+
+    const corners = this.boundingBoxCorners;
+    corners[0].set(min.x, min.y, min.z);
+    corners[1].set(min.x, min.y, max.z);
+    corners[2].set(min.x, max.y, min.z);
+    corners[3].set(min.x, max.y, max.z);
+    corners[4].set(max.x, min.y, min.z);
+    corners[5].set(max.x, min.y, max.z);
+    corners[6].set(max.x, max.y, min.z);
+    corners[7].set(max.x, max.y, max.z);
+    this.hasBoundingBoxCorners = true;
+  }
+
+  private recordFrustumAdjustment(snapshot: FrustumValidationSnapshot): void {
+    if (!this.frustumValidationEnabled) {
+      return;
+    }
+
+    const entry: FrustumAdjustmentRecord = {
+      ...snapshot,
+      timestamp: Date.now()
+    };
+
+    this.frustumAdjustmentLog.push(entry);
+    if (this.frustumAdjustmentLog.length > 20) {
+      this.frustumAdjustmentLog.shift();
+    }
+
+    console.debug('[ThreeModelComponent] Expanded camera frustum', entry);
   }
 
   private recenterAndFrameModel(force = false): void {
@@ -262,6 +407,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
     this.model.updateMatrixWorld(true);
     this.boundingBox.setFromObject(this.model);
     if (this.boundingBox.isEmpty()) {
+      this.hasBoundingBoxCorners = false;
       return;
     }
 
@@ -271,6 +417,7 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       !Number.isFinite(this.boundingSphere.center.y) ||
       !Number.isFinite(this.boundingSphere.center.z)
     ) {
+      this.hasBoundingBoxCorners = false;
       return;
     }
 
@@ -281,9 +428,11 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       this.boundingBox.getBoundingSphere(this.boundingSphere);
     }
     if (!Number.isFinite(this.boundingSphere.radius) || this.boundingSphere.radius <= 0) {
+      this.hasBoundingBoxCorners = false;
       return;
     }
 
+    this.cacheBoundingBoxCorners();
     this.cameraTarget.copy(this.boundingSphere.center);
 
     const normalizedRadius = Math.max(this.boundingSphere.radius, 1);
