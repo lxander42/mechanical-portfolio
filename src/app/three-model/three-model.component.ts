@@ -62,6 +62,9 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private boundingSphere = new THREE.Sphere();
   private cameraDirection = new THREE.Vector3(1, 1, 1).normalize();
   private cameraTarget = new THREE.Vector3();
+  private cameraRight = new THREE.Vector3(1, 0, 0);
+  private cameraUpVector = new THREE.Vector3(0, 1, 0);
+  private cameraForward = new THREE.Vector3(0, 0, -1);
   private baseRadius = 1;
   private sceneRadius = 1;
   private tempVector = new THREE.Vector3();
@@ -248,6 +251,24 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
       .add(this.cameraTarget);
     this.camera.position.copy(this.tempVector);
     this.camera.lookAt(this.cameraTarget);
+    this.updateCameraBasis();
+  }
+
+  private updateCameraBasis(): void {
+    if (!this.camera) {
+      return;
+    }
+
+    this.camera.updateMatrixWorld(true);
+    this.camera.matrixWorld.extractBasis(
+      this.cameraRight,
+      this.cameraUpVector,
+      this.cameraForward
+    );
+
+    this.cameraRight.normalize();
+    this.cameraUpVector.normalize();
+    this.cameraForward.normalize().multiplyScalar(-1);
   }
 
   private recenterAndFrameModel(force = false): void {
