@@ -65,6 +65,14 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
   private baseRadius = 1;
   private sceneRadius = 1;
   private tempVector = new THREE.Vector3();
+  private tempVector2 = new THREE.Vector3();
+  private cameraBounds: {
+    key: string;
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  } | null = null;
 
   constructor(
     private el: ElementRef,
@@ -286,7 +294,78 @@ export class ThreeModelComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.cameraTarget.copy(this.boundingSphere.center);
 
-    const normalizedRadius = Math.max(this.boundingSphere.radius, 1);
+    const min = this.boundingBox.min;
+    const max = this.boundingBox.max;
+    const cacheKey = `${min.x},${min.y},${min.z}|${max.x},${max.y},${max.z}|${this.isExploded ? 1 : 0}`;
+
+    let minX: number;
+    let maxX: number;
+    let minY: number;
+    let maxY: number;
+
+    this.camera.updateMatrixWorld(true);
+
+    const cachedBounds = this.cameraBounds;
+    if (cachedBounds && cachedBounds.key === cacheKey) {
+      ({ minX, maxX, minY, maxY } = cachedBounds);
+    } else {
+      let nextMinX = Number.POSITIVE_INFINITY;
+      let nextMaxX = Number.NEGATIVE_INFINITY;
+      let nextMinY = Number.POSITIVE_INFINITY;
+      let nextMaxY = Number.NEGATIVE_INFINITY;
+
+      const matrixInverse = this.camera.matrixWorldInverse;
+      const xValues = [min.x, max.x];
+      const yValues = [min.y, max.y];
+      const zValues = [min.z, max.z];
+
+      for (const x of xValues) {
+        for (const y of yValues) {
+          for (const z of zValues) {
+            this.tempVector2.set(x, y, z);
+            this.tempVector.copy(this.tempVector2).applyMatrix4(matrixInverse);
+
+            if (!Number.isFinite(this.tempVector.x) || !Number.isFinite(this.tempVector.y)) {
+              continue;
+            }
+
+            if (this.tempVector.x < nextMinX) {
+              nextMinX = this.tempVector.x;
+            }
+            if (this.tempVector.x > nextMaxX) {
+              nextMaxX = this.tempVector.x;
+            }
+            if (this.tempVector.y < nextMinY) {
+              nextMinY = this.tempVector.y;
+            }
+            if (this.tempVector.y > nextMaxY) {
+              nextMaxY = this.tempVector.y;
+            }
+          }
+        }
+      }
+
+      if (
+        !Number.isFinite(nextMinX) ||
+        !Number.isFinite(nextMaxX) ||
+        !Number.isFinite(nextMinY) ||
+        !Number.isFinite(nextMaxY)
+      ) {
+        return;
+      }
+
+      minX = nextMinX;
+      maxX = nextMaxX;
+      minY = nextMinY;
+      maxY = nextMaxY;
+      this.cameraBounds = { key: cacheKey, minX, maxX, minY, maxY };
+    }
+
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const boundsRadius = Math.max(width, height) * 0.5;
+
+    const normalizedRadius = Math.max(boundsRadius, this.boundingSphere.radius, 1);
     if (force) {
       this.baseRadius = normalizedRadius;
       this.sceneRadius = normalizedRadius;
